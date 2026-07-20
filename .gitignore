@@ -1,0 +1,42 @@
+data/**
+!data/**/
+!data/**/.gitkeep
+features/**
+checkpoints/**
+logs/**
+
+# Extension-level backstop, in case a file lands outside those folders
+*.h5
+*.hdf5
+*.parquet
+*.pt
+*.pth
+*.npy
+*.npz
+demo/*.sqlite
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+
+# ---- Notebooks ----
+.ipynb_checkpoints/
+
+# ---- Editor and OS ----
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ---- Preserve the folder structure on a fresh clone ----
+!data/.gitkeep
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/images/.gitkeep
+!features/.gitkeep
+!checkpoints/.gitkeep
+!logs/.gitkeep
+!results/.gitkeep

@@ -1,0 +1,64 @@
+# Capstone Multimodal Recommender — single source of truth.
+# Every script reads its parameters from here. Never hardcode these values.
+
+project:
+  name: capstone_multimodal_rec
+  root: /home/mncedisi/capstone_multimodal_rec
+
+paths:
+  raw_data: data/raw
+  processed_data: data/processed
+  images: data/images
+  features: features
+  checkpoints: checkpoints
+  results: results
+  logs: logs
+  reports: reports
+  demo: demo
+
+seeds:
+  split_construction: 42    # frozen after Phase 1 validation — never change silently
+  development: 1337         # single seed used for all tuning
+  statistical: [1, 2, 3, 4, 5]   # locked-configuration runs only
+
+data:
+  category: Electronics
+  domains: [laptops_tablets, audio, wearables, computer_accessories, camera_photo]
+  min_domains_per_user: 3        # relax to 2 only if the feasibility probe demands it
+  min_interactions_per_item: 5
+  min_interactions_per_user: 5   # ensures >=3 remain in training after leave-one-out
+  corpus_size_min: 5000
+  corpus_size_max: 7000
+  ghost_fraction: 0.20
+  ghost_min_interactions: 5
+
+features:
+  clip_model: openai/clip-vit-base-patch32
+  clip_dim: 512
+  sbert_model: sentence-transformers/all-mpnet-base-v2
+  sbert_dim: 768              # all-mpnet-base-v2 is 768, NOT 384
+  image_size: 224
+  extraction_batch_size: 64
+  use_fp16: true
+
+model:
+  embedding_dim: 64
+  fusion_dim: 128
+  attention_heads: 4
+  dropout: 0.5
+  mlp_layers: [128, 64, 32]
+
+training:
+  batch_size: 256             # reduce here first if memory pressure appears
+  learning_rate: 0.001
+  weight_decay: 0.00001
+  num_negatives: 4
+  max_epochs: 100
+  early_stopping_patience: 10
+
+evaluation:
+  k: 10
+  metrics: [ndcg, hit_rate, mrr, coverage]   # Precision@10 excluded — degenerate under leave-one-out
+  conditions: [control, blind, silent, ghost]
+  scoring_batch_size: 512
+  exclude_user_train_items: true             # standard protocol — do not omit

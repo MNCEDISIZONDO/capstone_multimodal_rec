@@ -1,0 +1,1 @@
+conda create -n capstone_env python=3.12 -c conda-forge --override-channels -y
