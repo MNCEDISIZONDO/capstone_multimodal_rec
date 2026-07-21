@@ -1,3 +1,4 @@
+
 # Capstone Multimodal Recommender — single source of truth.
 # Every script reads its parameters from here. Never hardcode these values.
 
@@ -31,6 +32,35 @@ data:
   corpus_size_max: 7000
   ghost_fraction: 0.20
   ghost_min_interactions: 5
+
+
+sources:
+  # 0-core ratings-only export: user_id, parent_asin, rating, timestamp.
+  # 0-core NOT 5-core — 5-core pre-filters at >=5 interactions, which would
+  # invalidate the feasibility probe's threshold comparison.
+  # Already keyed on parent_asin, so the asin/parent_asin trap cannot bite here.
+  interactions_url: https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/benchmark/0core/rating_only/Electronics.csv.gz
+  interactions_file: Electronics_ratings.csv.gz
+  # Item metadata: titles, features, descriptions, image URLs. No lightweight
+  # export exists — this is the heavy download, streamed exactly once.
+  metadata_url: https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_2023/raw/meta_categories/meta_Electronics.jsonl.gz
+  metadata_file: meta_Electronics.jsonl.gz
+  # Recorded for the filtering report, per manual section 1.3.
+  interactions_source_type: ratings_only_0core
+
+domain_keywords:
+  # Case-insensitive partial matching against flattened category fields.
+  laptops_tablets: [laptop, notebook computer, tablet, ipad, chromebook, macbook, 2-in-1, ultrabook]
+  audio: [headphone, headset, earbud, earphone, speaker, soundbar, audio, amplifier, microphone, turntable]
+  wearables: [smartwatch, smart watch, fitness tracker, wearable, activity tracker, fitness band, smart band]
+  computer_accessories: [keyboard, mouse, monitor, mousepad, docking station, usb hub, webcam, printer, external drive, laptop stand, sleeve, case, bag, cable, adapter, charger]
+  camera_photo: [camera, dslr, mirrorless, camera lens, tripod, camcorder, photography, flash, gimbal]
+
+# Applied when an item matches more than one domain. Accessory terms are
+# resolved BEFORE the device terms so that, e.g., a "laptop sleeve" is an
+# accessory rather than a laptop. Revisit after the section 1.4 title audit.
+domain_priority: [camera_photo, wearables, audio, computer_accessories, laptops_tablets]
+
 
 features:
   clip_model: openai/clip-vit-base-patch32
