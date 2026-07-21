@@ -25,7 +25,7 @@ data:
   category: Electronics
   domains: [laptops_tablets, audio, wearables, computer_accessories, camera_photo]
   min_domains_per_user: 3        # relax to 2 only if the feasibility probe demands it
-  min_interactions_per_item: 5
+  min_interactions_per_item: 10
   min_interactions_per_user: 5   # ensures >=3 remain in training after leave-one-out
   corpus_size_min: 5000
   corpus_size_max: 7000
