@@ -39,4 +39,4 @@ Thumbs.db
 !features/.gitkeep
 !checkpoints/.gitkeep
 !logs/.gitkeep
-!results/.gitkeep
+!results/.gitkeep*:Zone.Identifier
