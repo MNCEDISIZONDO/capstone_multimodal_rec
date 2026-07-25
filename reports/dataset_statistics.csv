@@ -1,0 +1,2 @@
+corpus_items,corpus_interactions,users,train_interactions,validation_interactions,test_interactions,ghost_interactions,ghost_items,train_density_pct,popularity_gini,image_success_rate,split_seed
+9503,191763,15794,93701,15794,15794,25656,1901,0.0786,0.4633,0.9975,42

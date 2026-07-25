@@ -1,0 +1,9 @@
+{
+  "seed": 42,
+  "sha256": {
+    "train": "69d2f6a12a61b5b86fac40f65b4523ec54b2948d0018910dca8f164cf958242d",
+    "validation": "11355cf03084c94dd8d3c66b1a86ebb8429f945e9d20d6b5654e640fea3093ff",
+    "test": "2160cc9c17e0ba3b267a9667a59bf8a8d65305e3ac605a7b9ea153f07e22b671",
+    "ghost_evaluation": "27ceece5a1d43a71b468fc596b1da9471e4000e22931aa332dc639b634f2e136"
+  }
+}
