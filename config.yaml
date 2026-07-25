@@ -24,43 +24,45 @@ seeds:
 data:
   category: Electronics
   domains: [laptops_tablets, audio, wearables, computer_accessories, camera_photo]
-  min_domains_per_user: 3        # relax to 2 only if the feasibility probe demands it
-  min_interactions_per_item: 10
+  # Confirmed by the feasibility probe: 111,270 users satisfy the three-domain
+  # constraint, so the relaxed two-domain fallback is not required.
+  min_domains_per_user: 3
+  # Selected from the threshold sensitivity analysis (reports/threshold_sweep.csv).
+  # A stricter floor of 10 yielded only 3,995 items, below the corpus target.
+  min_interactions_per_item: 7
   min_interactions_per_user: 5   # ensures >=3 remain in training after leave-one-out
   corpus_size_min: 5000
-  corpus_size_max: 7000
+  corpus_size_max: 10000
   ghost_fraction: 0.20
   ghost_min_interactions: 5
 
 sources:
   # 0-core ratings-only export: user_id, parent_asin, rating, timestamp.
-  # 0-core NOT 5-core — 5-core pre-filters at >=5 interactions, which would
-  # invalidate the feasibility probe's threshold comparison.
-  # Already keyed on parent_asin, so the asin/parent_asin trap cannot bite here.
+  # 0-core NOT 5-core — the 5-core release pre-filters at five interactions,
+  # which would invalidate any threshold comparison performed downstream.
+  # Already keyed on parent_asin, so product variants are correctly unified.
   interactions_url: https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/benchmark/0core/rating_only/Electronics.csv.gz
   interactions_file: Electronics_ratings.csv.gz
-  # Item metadata: titles, features, descriptions, image URLs. No lightweight
-  # export exists — this is the heavy download, streamed exactly once.
-  # NOTE: the URL published on the HuggingFace dataset card (datarepo.eng.ucsd.edu)
-  # was dead as of July 2026; mcauleylab.ucsd.edu is the live host.
+  # Item metadata: titles, features, descriptions, image URLs.
+  # The URL published on the HuggingFace dataset card (datarepo.eng.ucsd.edu)
+  # was unreachable as of July 2026; mcauleylab.ucsd.edu is the live host.
   metadata_url: https://mcauleylab.ucsd.edu/public_datasets/data/amazon_2023/raw/meta_categories/meta_Electronics.jsonl.gz
   metadata_file: meta_Electronics.jsonl.gz
-  # Recorded for the filtering report, per manual section 1.3.
   interactions_source_type: ratings_only_0core
 
 # Domain assignment operates on the hierarchical `categories` path, which runs
 # broad to specific. Three stages, applied in order:
-#   1. LEAF veto      — the last path token is what the item IS.
-#   2. TITLE veto     — catches accessories filed under the device leaf.
+#   1. LEAF veto      — the last path token identifies what the item is.
+#   2. TITLE veto     — catches accessories filed under a device leaf.
 #   3. TITLE require  — the title must contain a domain-relevant term.
-# Stage 3 is the robust one: Amazon's metadata contains outright errors (a
-# toothbrush filed under 'speakers') that no category rule catches. Asymmetry
-# is deliberate — 217k items survive stage 1 and only ~7k are needed, so
-# over-rejecting is free while under-rejecting corrupts the corpus.
+# Stage 3 is the robust stage: the source metadata contains outright
+# misclassifications that no category rule can anticipate but which fail an
+# affirmative title test immediately. Over-rejection is acceptable because the
+# in-scope pool greatly exceeds the corpus requirement.
 domain_rules:
-  # Stage 1. Matched as substrings against the LEAF token only. Vetoing on
-  # ancestors would reject the whole catalogue, since 'computers & accessories'
-  # is the ancestor of both laptops and laptop bags.
+  # Matched as substrings against the LEAF token only. Matching against ancestor
+  # tokens would reject the entire catalogue, since 'computers & accessories' is
+  # the common ancestor of both laptops and laptop bags.
   exclude_contains:
     - accessor
     - replacement part
@@ -71,13 +73,13 @@ domain_rules:
     - cable
     - adapter
     - charger
-    - batter            # battery, batteries
+    - batter
     - screen protector
     - skin
     - decal
     - mount
     - stand
-    - monitor arms      # not "arm" — that also matched "alarm"
+    - monitor arms
     - wristband
     - cooling
     - remote control
@@ -86,9 +88,8 @@ domain_rules:
     - holder
     - cover
 
-  # Stage 2. Matched as substrings against the TITLE. Deliberately narrow —
-  # "compatible with" alone would reject legitimate products such as
-  # "Smart Watch Compatible with iPhone".
+  # Matched as substrings against the TITLE. Deliberately narrow: a broad
+  # phrase such as "compatible with" would reject legitimate products.
   exclude_title_contains:
     - watch band
     - watch bands
@@ -97,6 +98,10 @@ domain_rules:
     - replacement band
     - bands for
     - band for
+    - sport band
+    - accessory band
+    - ankle band
+    - band compatible
     - wrist strap
     - travel case
     - carrying case
@@ -114,13 +119,8 @@ domain_rules:
     - glove
     - bracket
     - for arduino
-    - sport band
-    - accessory band
-    - ankle band
-    - band compatible
 
-  # Stage 3. The title must contain at least one of these terms for the
-  # assigned domain, or the item is dropped.
+  # The title must contain at least one term for the assigned domain.
   require_title_contains:
     laptops_tablets: [laptop, notebook, tablet, chromebook, macbook, ultrabook, ipad, thinkpad]
     audio: [headphone, earbud, earphone, speaker, soundbar, headset, subwoofer, earpiece]
@@ -128,9 +128,13 @@ domain_rules:
     computer_accessories: [keyboard, mouse, mice, monitor, webcam, hub, dock, display, keypad]
     camera_photo: [camera, lens, tripod, camcorder, dslr, monopod]
 
-  # Exact leaf tokens that define each domain. Devices only — desktops and
-  # surveillance/dash cameras are deliberately excluded to keep the domains
-  # semantically coherent (portable computing; consumer photography).
+  # Device-level leaf tokens defining each domain. Desktops are excluded from
+  # laptops_tablets because the domain covers portable computing; surveillance
+  # and vehicle cameras are excluded from camera_photo because they are security
+  # and automotive products rather than consumer photography. Tripods are
+  # retained despite the general accessory exclusion, because the exclusion
+  # targets low-signal items (cables, cases) whereas tripods carry distinctive
+  # visual and textual content.
   include_exact:
     laptops_tablets:
       [laptops, traditional laptops, 2 in 1 laptops, gaming laptops,
@@ -152,17 +156,23 @@ domain_rules:
        lenses, camera lenses, slr camera lenses,
        tripods & monopods, complete tripods]
 
-# Tie-breaker when an item matches tokens from more than one domain.
-# EMPIRICAL FINDING: zero items matched >1 domain, because include_exact uses
-# device-level leaf tokens which are mutually exclusive. Retained as a
-# documented safeguard rather than deleted.
+# Tie-breaker when an item matches tokens from more than one domain. No item in
+# the source data matched multiple domains, since include_exact uses mutually
+# exclusive device-level tokens; retained as a safeguard.
 domain_priority: [wearables, laptops_tablets, audio, computer_accessories, camera_photo]
+
+images:
+  min_bytes: 2000         # smaller responses are typically error pages or placeholders
+  min_pixels: 64          # below this an image carries no usable visual signal
+  max_workers: 8
+  timeout_seconds: 20
+  max_retries: 3
 
 features:
   clip_model: openai/clip-vit-base-patch32
   clip_dim: 512
   sbert_model: sentence-transformers/all-mpnet-base-v2
-  sbert_dim: 768              # all-mpnet-base-v2 is 768, NOT 384
+  sbert_dim: 768              # all-mpnet-base-v2 produces 768 dimensions
   image_size: 224
   extraction_batch_size: 64
   use_fp16: true
@@ -184,7 +194,9 @@ training:
 
 evaluation:
   k: 10
-  metrics: [ndcg, hit_rate, mrr, coverage]   # Precision@10 excluded — degenerate under leave-one-out
+  # Precision@10 is excluded: under leave-one-out evaluation with a single
+  # relevant item per user it equals HR@10 divided by ten and adds no information.
+  metrics: [ndcg, hit_rate, mrr, coverage]
   conditions: [control, blind, silent, ghost]
   scoring_batch_size: 512
-  exclude_user_train_items: true             # standard protocol — do not omit
+  exclude_user_train_items: true
