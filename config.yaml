@@ -179,10 +179,23 @@ features:
 
 model:
   embedding_dim: 64
-  fusion_dim: 128
+  fusion_dim: 128             # must be divisible by attention_heads
   attention_heads: 4
   dropout: 0.5
   mlp_layers: [128, 64, 32]
+  # The two encoders emit vectors on different numerical scales (measured mean
+  # norms of 10.3 and 1.0). Without per-modality normalisation the larger-scale
+  # modality dominates the fused representation from initialisation for reasons
+  # of magnitude rather than information content, which would confound the
+  # ablation study. Applied identically across all variants so that comparisons
+  # remain fair.
+  modality_normalisation: layernorm
+  # Every item present in training has a collaborative representation, so a
+  # model trained without intervention never encounters the condition it must
+  # handle at cold-start inference. Randomly suppressing the collaborative
+  # signal during training exposes the model to that condition while it can
+  # still learn from it.
+  collaborative_dropout: 0.2
 
 training:
   batch_size: 256             # reduce here first if memory pressure appears
