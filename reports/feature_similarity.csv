@@ -1,0 +1,11 @@
+modality,domain,within_domain,cross_domain,margin
+image,laptops_tablets,0.7071,0.6175,0.0896
+image,audio,0.7203,0.6316,0.0887
+image,wearables,0.7759,0.5998,0.1761
+image,computer_accessories,0.6908,0.6361,0.0548
+image,camera_photo,0.7153,0.6153,0.1001
+text,laptops_tablets,0.5015,0.2269,0.2746
+text,audio,0.4683,0.1986,0.2697
+text,wearables,0.6115,0.2355,0.376
+text,computer_accessories,0.3782,0.2257,0.1525
+text,camera_photo,0.3841,0.1704,0.2136

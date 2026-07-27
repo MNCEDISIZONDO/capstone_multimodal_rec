@@ -1,15 +1,9 @@
-"""Verify the Phase 1 dataset before any downstream work (gate script).
 
-Run this at the start of any session that consumes the frozen dataset. It
-confirms that the environment is functional, that every expected artifact is
-present with the expected contents, and — most importantly — that the frozen
-split files are byte-identical to the ones validated at the end of Phase 1.
 
-Any failure halts the script. Feature extraction, training and evaluation
-performed against an unverified dataset are void, because the guarantees
-established in Phase 1 no longer demonstrably hold.
-"""
 from __future__ import annotations
+import sys
+from pathlib import Path as _Path
+sys.path.insert(0, str(_Path(__file__).resolve().parent.parent / "src"))
 
 import hashlib
 import json
