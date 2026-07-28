@@ -15,16 +15,16 @@ representation; an item's image could not be retrieved; or a modality is
 deliberately suppressed at evaluation to measure dependence on it. All three are
 handled by the same mechanism, and in no case is a zero vector consumed as
 though it were data. Under attention fusion the absent signal is excluded from
-the attention keys, so it contributes nothing to the weighted sum. Under
-concatenation fusion, where the input width is fixed, the absent signal's slot
-is filled by a learned parameter that the model trains to interpret as absence.
+the attention keys, so it contributes nothing to the weighted sum. Everywhere
+else the input width is fixed, so the absent signal's slot is filled by a
+learned parameter that the model trains to interpret as absence.
 
 Collaborative dropout. Every item present in training has, by definition, a
 collaborative representation, so a model trained naively never encounters the
 condition it must handle at cold-start inference. Randomly suppressing the
 collaborative signal during training exposes the model to that condition while
-it can still learn from it, which is what makes the cold-start path produce
-meaningful scores rather than out-of-distribution ones.
+it can still learn from it. This applies only where content signals remain to
+learn from; a collaborative-only model has no fallback.
 """
 from __future__ import annotations
 
@@ -82,7 +82,15 @@ class MultimodalRecommender(nn.Module):
         self.use_image = use_image
         self.use_text = use_text
         self.fusion_mode = fusion_mode
-        self.collaborative_dropout = model_cfg.get("collaborative_dropout", 0.0)
+
+        # Suppressing the collaborative signal during training simulates the
+        # cold-start condition, which is only instructive when content signals
+        # remain for the model to learn from. A collaborative-only model has no
+        # fallback, and structurally cannot serve cold-start items in any case.
+        self.collaborative_dropout = (
+            model_cfg.get("collaborative_dropout", 0.0)
+            if (use_interaction and (use_image or use_text)) else 0.0
+        )
 
         # Precomputed features are held as buffers: they move with the model
         # between devices and are saved with its state, but are never updated by
@@ -118,14 +126,18 @@ class MultimodalRecommender(nn.Module):
 
         self.n_signals = sum([use_interaction, use_image, use_text])
 
-        # A learned representation of absence, used where the input width is
-        # fixed. Distinct from a zero vector: the model observes this parameter
-        # during training and learns what it denotes.
-        if self.n_signals > 1 and fusion_mode == "concat":
+        # Attention can exclude a signal from its keys, so absence needs no
+        # representation there. Every other path has a fixed input width and
+        # therefore requires one.
+        self.uses_attention = (self.n_signals > 1 and fusion_mode == "attention")
+
+        # A learned representation of absence. Distinct from a zero vector: the
+        # model observes this parameter during training and learns what it
+        # denotes, whereas the origin is a point training never populates.
+        if not self.uses_attention:
             self.absent_signal = nn.Parameter(torch.zeros(self.n_signals, self.fusion_dim))
             nn.init.normal_(self.absent_signal, std=0.01)
-
-        if self.n_signals > 1 and fusion_mode == "attention":
+        else:
             self.attention = nn.MultiheadAttention(
                 embed_dim=self.fusion_dim,
                 num_heads=model_cfg["attention_heads"],
@@ -152,11 +164,9 @@ class MultimodalRecommender(nn.Module):
         raise ValueError(f"unknown normalisation: {kind}")
 
     def _head_input_width(self) -> int:
-        if self.n_signals == 1:
-            return 2 * self.fusion_dim              # user and the single signal
-        if self.fusion_mode == "concat":
-            return (1 + self.n_signals) * self.fusion_dim
-        return 2 * self.fusion_dim                  # user and the attended summary
+        if self.uses_attention:
+            return 2 * self.fusion_dim          # the user and the attended summary
+        return (1 + self.n_signals) * self.fusion_dim
 
     def _initialise(self) -> None:
         for module in self.modules():
@@ -235,18 +245,17 @@ class MultimodalRecommender(nn.Module):
         tokens, available = self._signal_tokens(
             item_idx, collaborative_available, image_enabled, text_enabled)
 
-        if not available.any(dim=1).all():
-            raise ValueError("an item in this batch has no available signal")
-
-        if self.n_signals == 1:
-            fused = tokens[:, 0, :]
-        elif self.fusion_mode == "concat":
+        if not self.uses_attention:
             # Absent signals occupy their slot with a learned representation of
             # absence rather than zeros, keeping the input width fixed while
             # remaining distinguishable from a genuine all-zero feature.
             absent = self.absent_signal.unsqueeze(0).expand_as(tokens)
             fused = torch.where(available.unsqueeze(-1), tokens, absent).flatten(start_dim=1)
         else:
+            # Attention over an empty key set is undefined, so the case the
+            # content floor exists to prevent is checked explicitly.
+            if not available.any(dim=1).all():
+                raise ValueError("an item in this batch has no available signal")
             # The user representation queries the available signals, so the
             # weighting of image, text and collaborative evidence is decided per
             # pair rather than fixed in advance. Absent signals are excluded from
@@ -272,7 +281,7 @@ class MultimodalRecommender(nn.Module):
 
         Shape is (batch, n_signals), ordered as signal_names() reports.
         """
-        if self.fusion_mode != "attention" or self.n_signals == 1:
+        if not self.uses_attention:
             raise RuntimeError("attention weights exist only for attention fusion")
 
         user = self.user_projection(self.user_embedding(user_idx))

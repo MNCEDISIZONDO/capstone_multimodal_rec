@@ -197,6 +197,7 @@ model:
   # still learn from it.
   collaborative_dropout: 0.2
 
+
 training:
   batch_size: 256             # reduce here first if memory pressure appears
   learning_rate: 0.001
@@ -204,6 +205,13 @@ training:
   num_negatives: 4
   max_epochs: 100
   early_stopping_patience: 10
+  # Validation during training ranks a sample of users against the full
+  # catalogue rather than against sampled negatives, so the early-stopping
+  # signal is not distorted by the sampling bias that affects sampled metrics.
+  # A sample of users keeps the per-epoch cost low enough for the number of
+  # runs the experimental protocol requires; final evaluation uses every user.
+  validation_users: 1000
+  validation_chunk_users: 64
 
 evaluation:
   k: 10
