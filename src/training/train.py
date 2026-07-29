@@ -14,8 +14,14 @@ is never presented as an example of something they rejected.
 
 Validation ranks a sample of users against the full candidate catalogue rather
 than against a handful of sampled negatives, because sampled metrics are known
-to distort model comparisons. Early stopping retains the best checkpoint rather
-than the last, since the last may already be overfitting.
+to distort model comparisons. Item coverage is reported alongside the ranking
+metrics because accuracy alone cannot distinguish a personalised recommender
+from one that has collapsed onto recommending broadly the same popular items to
+everybody; the two are indistinguishable in an accuracy column and obvious in a
+coverage column.
+
+Early stopping retains the best checkpoint rather than the last, since the last
+may already be overfitting.
 """
 from __future__ import annotations
 
@@ -25,6 +31,7 @@ from pathlib import Path as _Path
 _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
 
 import argparse
+import copy
 import json
 import time
 from pathlib import Path
@@ -39,20 +46,29 @@ from config import load_config
 from device_utils import clear_gpu_memory, get_device, vram_report
 from models import SYSTEMS, build_model
 
-cfg = load_config()
-PROCESSED = Path(cfg["paths"]["processed_data"])
-FEATURES = Path(cfg["paths"]["features"])
-CHECKPOINTS = Path(cfg["paths"]["checkpoints"])
-LOGS = Path(cfg["paths"]["logs"])
+BASE_CFG = load_config()
+PROCESSED = Path(BASE_CFG["paths"]["processed_data"])
+FEATURES = Path(BASE_CFG["paths"]["features"])
+CHECKPOINTS = Path(BASE_CFG["paths"]["checkpoints"])
+LOGS = Path(BASE_CFG["paths"]["logs"])
 CHECKPOINTS.mkdir(parents=True, exist_ok=True)
 LOGS.mkdir(parents=True, exist_ok=True)
 
-TRAIN_CFG = cfg["training"]
-K = cfg["evaluation"]["k"]
+K = BASE_CFG["evaluation"]["k"]
+
+_CACHE: dict | None = None
 
 
 def load_everything() -> dict:
-    """Load the frozen split, the index mappings and the precomputed features."""
+    """Load the frozen split, the index mappings and the precomputed features.
+
+    Cached across calls so that a sweep of configurations does not repeatedly
+    re-read the same immutable inputs.
+    """
+    global _CACHE
+    if _CACHE is not None:
+        return _CACHE
+
     items = pd.read_parquet(PROCESSED / "item_index.parquet").sort_values("item_idx")
     users = pd.read_parquet(PROCESSED / "user_index.parquet")
 
@@ -71,16 +87,15 @@ def load_everything() -> dict:
     with h5py.File(FEATURES / "text_embeddings.h5", "r") as store:
         text_features, text_available = store["embeddings"][:], store["available"][:]
 
-    is_ghost = items["is_ghost"].to_numpy().copy()
-
-    return dict(
+    _CACHE = dict(
         n_users=len(users), n_items=len(items),
         train_users=train_users, train_items=train_items,
         val_users=val_users, val_items=val_items,
         image_features=image_features, image_available=image_available,
         text_features=text_features, text_available=text_available,
-        is_ghost=is_ghost,
+        is_ghost=items["is_ghost"].to_numpy().copy(),
     )
+    return _CACHE
 
 
 class NegativeSampler:
@@ -103,8 +118,8 @@ class NegativeSampler:
 
     def _is_observed(self, users: np.ndarray, items: np.ndarray) -> np.ndarray:
         keys = users * self.n_items + items
-        position = np.searchsorted(self.observed, keys)
-        position = np.clip(position, 0, len(self.observed) - 1)
+        position = np.clip(np.searchsorted(self.observed, keys),
+                           0, len(self.observed) - 1)
         return self.observed[position] == keys
 
     def sample(self, users: np.ndarray, n_negatives: int) -> np.ndarray:
@@ -120,8 +135,11 @@ class NegativeSampler:
 
 def evaluate(model, device, val_users: np.ndarray, val_items: np.ndarray,
              candidates: np.ndarray, seen: dict[int, np.ndarray],
-             chunk_size: int) -> tuple[float, float]:
+             chunk_size: int) -> tuple[float, float, int]:
     """Rank each user's held-out item against the full candidate catalogue.
+
+    Returns NDCG@K, hit rate@K, and the number of distinct items appearing in
+    any user's top-K list.
 
     Items the user interacted with during training are removed from the
     candidate list, since scoring the model on items it correctly learned the
@@ -139,6 +157,7 @@ def evaluate(model, device, val_users: np.ndarray, val_items: np.ndarray,
 
     ndcg_total = hit_total = 0.0
     counted = 0
+    recommended: set[int] = set()
 
     with torch.no_grad():
         for start in range(0, len(val_users), chunk_size):
@@ -146,17 +165,14 @@ def evaluate(model, device, val_users: np.ndarray, val_items: np.ndarray,
             chunk_items = val_items[start:start + chunk_size]
             n_chunk = len(chunk_users)
 
-            # Held-out items outside the candidate pool cannot be ranked.
             positions = np.array([position_of.get(int(i), -1) for i in chunk_items])
             valid = positions >= 0
             if not valid.any():
                 continue
 
             user_tensor = torch.as_tensor(chunk_users, device=device)
-            expanded_users = user_tensor.repeat_interleave(n_candidates)
-            expanded_items = candidate_tensor.repeat(n_chunk)
-
-            scores = model(expanded_users, expanded_items).view(n_chunk, n_candidates)
+            scores = model(user_tensor.repeat_interleave(n_candidates),
+                           candidate_tensor.repeat(n_chunk)).view(n_chunk, n_candidates)
 
             # Exclusion indices are assembled on the host and applied in a
             # single scattered write, avoiding a device round trip per user.
@@ -170,25 +186,33 @@ def evaluate(model, device, val_users: np.ndarray, val_items: np.ndarray,
                 scores[torch.as_tensor(np.concatenate(rows), device=device),
                        torch.as_tensor(np.concatenate(columns), device=device)] = float("-inf")
 
-            target_positions = torch.as_tensor(np.where(valid, positions, 0),
-                                               device=device)
+            recommended.update(scores.topk(K, dim=1).indices.cpu().numpy().reshape(-1).tolist())
+
+            target_positions = torch.as_tensor(np.where(valid, positions, 0), device=device)
             target_scores = scores.gather(1, target_positions.unsqueeze(1))
             ranks = (scores > target_scores).sum(dim=1) + 1
 
             within_k = (ranks <= K) & torch.as_tensor(valid, device=device)
-            gains = torch.where(within_k,
-                                1.0 / torch.log2(ranks.float() + 1.0),
-                                torch.zeros_like(ranks, dtype=torch.float32))
-
-            ndcg_total += float(gains.sum())
+            ndcg_total += float(torch.where(
+                within_k, 1.0 / torch.log2(ranks.float() + 1.0),
+                torch.zeros_like(ranks, dtype=torch.float32)).sum())
             hit_total += float(within_k.sum())
             counted += int(valid.sum())
 
     return (ndcg_total / counted if counted else 0.0,
-            hit_total / counted if counted else 0.0)
+            hit_total / counted if counted else 0.0,
+            len(recommended))
 
 
-def train(system: str, seed: int, smoke: bool = False) -> None:
+def train(system: str, seed: int, smoke: bool = False, tag: str = "",
+          overrides: dict | None = None, quiet: bool = False) -> dict:
+    """Train one system and return a summary of the run."""
+    cfg = copy.deepcopy(BASE_CFG)
+    for path, value in (overrides or {}).items():
+        section, key = path.split(".")
+        cfg[section][key] = value
+
+    train_cfg = cfg["training"]
     data = load_everything()
     device = get_device()
 
@@ -202,8 +226,8 @@ def train(system: str, seed: int, smoke: bool = False) -> None:
                         system).to(device)
 
     optimiser = torch.optim.Adam(model.parameters(),
-                                 lr=TRAIN_CFG["learning_rate"],
-                                 weight_decay=TRAIN_CFG["weight_decay"])
+                                 lr=train_cfg["learning_rate"],
+                                 weight_decay=train_cfg["weight_decay"])
 
     sampler = NegativeSampler(data["n_items"], data["is_ghost"],
                               data["train_users"], data["train_items"], rng)
@@ -211,10 +235,8 @@ def train(system: str, seed: int, smoke: bool = False) -> None:
     # Withheld items are not candidates during warm-start validation; they are
     # evaluated separately under the cold-start condition.
     candidates = np.flatnonzero(~data["is_ghost"]).astype(np.int64)
-
-    # Positions are expressed relative to the candidate list, so the exclusion
-    # mask can be applied directly to the score matrix.
     position_of = {int(item): index for index, item in enumerate(candidates)}
+
     seen: dict[int, np.ndarray] = {}
     frame = pd.DataFrame({"user": data["train_users"], "item": data["train_items"]})
     for user, group in frame.groupby("user"):
@@ -224,31 +246,34 @@ def train(system: str, seed: int, smoke: bool = False) -> None:
 
     # The validation sample is drawn once, so the early-stopping signal is
     # comparable across epochs and across runs.
-    n_validation = min(TRAIN_CFG["validation_users"], len(data["val_users"]))
+    n_validation = min(train_cfg["validation_users"], len(data["val_users"]))
     chosen = rng.choice(len(data["val_users"]), size=n_validation, replace=False)
     val_users = data["val_users"][chosen]
     val_items = data["val_items"][chosen]
 
-    max_epochs = 2 if smoke else TRAIN_CFG["max_epochs"]
-    batch_size = TRAIN_CFG["batch_size"]
-    n_negatives = TRAIN_CFG["num_negatives"]
+    max_epochs = 2 if smoke else train_cfg["max_epochs"]
+    batch_size = train_cfg["batch_size"]
+    n_negatives = train_cfg["num_negatives"]
     n_train = len(data["train_users"])
+    name = f"{system}{('_' + tag) if tag else ''}_seed{seed}"
 
-    print(f"system            : {system}")
-    print(f"seed              : {seed}")
-    print(f"device            : {device}")
-    print(f"training pairs    : {n_train:,}")
-    print(f"negative pool     : {len(sampler.pool):,} items")
-    print(f"candidate pool    : {len(candidates):,} items")
-    print(f"validation users  : {n_validation:,}")
-    print(f"parameters        : {sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
-    print(f"{vram_report()}\n")
+    if not quiet:
+        print(f"system            : {system}")
+        print(f"run               : {name}")
+        print(f"collab. dropout   : {cfg['model']['collaborative_dropout']}")
+        print(f"embedding dim     : {cfg['model']['embedding_dim']}")
+        print(f"training pairs    : {n_train:,}")
+        print(f"candidate pool    : {len(candidates):,} items")
+        print(f"parameters        : "
+              f"{sum(p.numel() for p in model.parameters() if p.requires_grad):,}")
+        print(f"{vram_report()}\n")
 
     history = []
     best_ndcg = -1.0
     best_epoch = -1
-    epochs_without_improvement = 0
-    checkpoint_path = CHECKPOINTS / f"{system}_seed{seed}.pt"
+    best_coverage = 0
+    without_improvement = 0
+    checkpoint_path = CHECKPOINTS / f"{name}.pt"
 
     for epoch in range(1, max_epochs + 1):
         started = time.time()
@@ -264,12 +289,9 @@ def train(system: str, seed: int, smoke: bool = False) -> None:
             negatives = sampler.sample(users, n_negatives)
 
             user_tensor = torch.as_tensor(users, device=device)
-            positive_tensor = torch.as_tensor(positives, device=device)
-            negative_tensor = torch.as_tensor(negatives, device=device)
-
-            positive_scores = model(user_tensor, positive_tensor)
+            positive_scores = model(user_tensor, torch.as_tensor(positives, device=device))
             negative_scores = model(user_tensor.repeat_interleave(n_negatives),
-                                    negative_tensor)
+                                    torch.as_tensor(negatives, device=device))
 
             loss = -F.logsigmoid(
                 positive_scores.repeat_interleave(n_negatives) - negative_scores).mean()
@@ -283,58 +305,87 @@ def train(system: str, seed: int, smoke: bool = False) -> None:
 
         train_time = time.time() - started
         validation_started = time.time()
-        ndcg, hit_rate = evaluate(model, device, val_users, val_items, candidates,
-                                  seen, TRAIN_CFG["validation_chunk_users"])
+        ndcg, hit_rate, coverage = evaluate(
+            model, device, val_users, val_items, candidates, seen,
+            train_cfg["validation_chunk_users"])
         validation_time = time.time() - validation_started
 
         mean_loss = total_loss / n_batches
         improved = ndcg > best_ndcg
         if improved:
-            best_ndcg, best_epoch = ndcg, epoch
-            epochs_without_improvement = 0
+            best_ndcg, best_epoch, best_coverage = ndcg, epoch, coverage
+            without_improvement = 0
             torch.save({"state_dict": model.state_dict(), "system": system,
-                        "seed": seed, "epoch": epoch, "val_ndcg": ndcg},
+                        "seed": seed, "epoch": epoch, "val_ndcg": ndcg,
+                        "coverage": coverage,
+                        "collaborative_dropout": cfg["model"]["collaborative_dropout"],
+                        "embedding_dim": cfg["model"]["embedding_dim"]},
                        checkpoint_path)
         else:
-            epochs_without_improvement += 1
+            without_improvement += 1
 
         history.append({"epoch": epoch, "train_loss": round(mean_loss, 5),
                         "val_ndcg": round(ndcg, 5), "val_hit_rate": round(hit_rate, 5),
+                        "coverage": coverage,
                         "train_seconds": round(train_time, 1),
                         "validation_seconds": round(validation_time, 1)})
 
-        print(f"epoch {epoch:>3}  loss {mean_loss:.4f}  "
-              f"NDCG@{K} {ndcg:.4f}  HR@{K} {hit_rate:.4f}  "
-              f"{train_time:.0f}s + {validation_time:.0f}s"
-              f"{'  *' if improved else ''}")
+        if not quiet:
+            print(f"epoch {epoch:>3}  loss {mean_loss:.4f}  "
+                  f"NDCG@{K} {ndcg:.4f}  HR@{K} {hit_rate:.4f}  "
+                  f"cov {coverage:>5,}  {train_time:.0f}s + {validation_time:.0f}s"
+                  f"{'  *' if improved else ''}")
 
-        if epochs_without_improvement >= TRAIN_CFG["early_stopping_patience"]:
-            print(f"\nstopped early: no improvement for "
-                  f"{TRAIN_CFG['early_stopping_patience']} epochs")
+        if without_improvement >= train_cfg["early_stopping_patience"]:
+            if not quiet:
+                print(f"\nstopped early: no improvement for "
+                      f"{train_cfg['early_stopping_patience']} epochs")
             break
 
-    log_path = LOGS / f"{system}_seed{seed}.csv"
-    pd.DataFrame(history).to_csv(log_path, index=False)
+    pd.DataFrame(history).to_csv(LOGS / f"{name}.csv", index=False)
 
-    summary = {"system": system, "seed": seed, "best_epoch": best_epoch,
-               "best_val_ndcg": round(best_ndcg, 5), "epochs_run": len(history),
+    summary = {"system": system, "run": name, "seed": seed,
+               "collaborative_dropout": cfg["model"]["collaborative_dropout"],
+               "embedding_dim": cfg["model"]["embedding_dim"],
+               "best_epoch": best_epoch, "best_val_ndcg": round(best_ndcg, 5),
+               "coverage_at_best": best_coverage, "epochs_run": len(history),
                "checkpoint": str(checkpoint_path)}
-    (LOGS / f"{system}_seed{seed}.json").write_text(json.dumps(summary, indent=2))
+    (LOGS / f"{name}.json").write_text(json.dumps(summary, indent=2))
 
-    print(f"\nbest NDCG@{K} {best_ndcg:.4f} at epoch {best_epoch}")
-    print(f"Wrote {checkpoint_path}")
-    print(f"Wrote {log_path}")
+    if not quiet:
+        print(f"\nbest NDCG@{K} {best_ndcg:.4f} at epoch {best_epoch}, "
+              f"coverage {best_coverage:,}")
+        print(f"Wrote {checkpoint_path}")
+
     clear_gpu_memory()
+    return summary
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train one system.")
     parser.add_argument("system", choices=sorted(SYSTEMS))
-    parser.add_argument("--seed", type=int, default=cfg["seeds"]["development"])
+    parser.add_argument("--seed", type=int, default=BASE_CFG["seeds"]["development"])
     parser.add_argument("--smoke", action="store_true",
                         help="run two epochs only, to verify the pipeline")
+    parser.add_argument("--tag", default="", help="suffix for output filenames")
+    parser.add_argument("--collaborative-dropout", type=float, default=None)
+    parser.add_argument("--embedding-dim", type=int, default=None)
+    parser.add_argument("--max-epochs", type=int, default=None)
+    parser.add_argument("--patience", type=int, default=None)
     arguments = parser.parse_args()
-    train(arguments.system, arguments.seed, arguments.smoke)
+
+    overrides = {}
+    if arguments.collaborative_dropout is not None:
+        overrides["model.collaborative_dropout"] = arguments.collaborative_dropout
+    if arguments.embedding_dim is not None:
+        overrides["model.embedding_dim"] = arguments.embedding_dim
+    if arguments.max_epochs is not None:
+        overrides["training.max_epochs"] = arguments.max_epochs
+    if arguments.patience is not None:
+        overrides["training.early_stopping_patience"] = arguments.patience
+
+    train(arguments.system, arguments.seed, arguments.smoke,
+          arguments.tag, overrides)
 
 
 if __name__ == "__main__":

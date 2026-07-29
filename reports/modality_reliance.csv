@@ -1,0 +1,7 @@
+condition,signal,mean_weight,std_weight
+warm,collaborative,0.70096,0.19731
+cold_start,collaborative,0.0,0.0
+warm,image,0.14177,0.1029
+cold_start,image,0.62768,0.21276
+warm,text,0.15727,0.16766
+cold_start,text,0.37232,0.21276

@@ -1,0 +1,9 @@
+system,run,seed,collaborative_dropout,embedding_dim,best_epoch,best_val_ndcg,coverage_at_best,epochs_run,checkpoint
+attention_fusion,attention_fusion_cd20_ed64_seed1337,1337,0.2,64,26,0.02807,236,46,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd20_ed64_seed1337.pt
+attention_fusion,attention_fusion_cd20_ed16_seed1337,1337,0.2,16,31,0.02899,335,51,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd20_ed16_seed1337.pt
+attention_fusion,attention_fusion_cd50_ed64_seed1337,1337,0.5,64,7,0.0267,126,27,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd50_ed64_seed1337.pt
+attention_fusion,attention_fusion_cd50_ed16_seed1337,1337,0.5,16,16,0.0264,129,36,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd50_ed16_seed1337.pt
+attention_fusion,attention_fusion_cd80_ed64_seed1337,1337,0.8,64,4,0.02524,78,24,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd80_ed64_seed1337.pt
+attention_fusion,attention_fusion_cd80_ed16_seed1337,1337,0.8,16,2,0.02512,29,22,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd80_ed16_seed1337.pt
+attention_fusion,attention_fusion_cd100_ed64_seed1337,1337,1.0,64,7,0.02336,98,27,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd100_ed64_seed1337.pt
+attention_fusion,attention_fusion_cd100_ed16_seed1337,1337,1.0,16,15,0.02536,201,35,/home/mncedisi/capstone_multimodal_rec/checkpoints/attention_fusion_cd100_ed16_seed1337.pt

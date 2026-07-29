@@ -1,0 +1,8 @@
+system,ndcg,hit_rate,distinct_items,candidates,coverage,most_recommended_item_share
+popularity,0.02194,0.037,13,7602,0.00171,0.986
+ncf,0.02482,0.041,127,7602,0.01671,0.905
+image_only,0.11307,0.145,1361,7602,0.17903,0.221
+text_only,0.01017,0.017,266,7602,0.03499,0.874
+content_only,0.02379,0.044,119,7602,0.01565,0.922
+concat_fusion,0.02427,0.041,28,7602,0.00368,0.943
+attention_fusion,0.02807,0.053,236,7602,0.03104,0.904

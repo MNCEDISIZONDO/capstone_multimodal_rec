@@ -1,0 +1,9 @@
+{
+  "seed": 1337,
+  "k": 10,
+  "users": 15794,
+  "items": 9503,
+  "warm_candidates": 7602,
+  "cold_start_items": 1901,
+  "accidental_cold_start_items_in_test": 51
+}
