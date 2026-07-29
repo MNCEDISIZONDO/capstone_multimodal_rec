@@ -1,0 +1,10 @@
+system_a,system_b,condition,pool,question,n_pairs,n_differing,mean_a,mean_b,relative_gain_pct,a_better,b_better,effect_size,p_value,significant
+attention_fusion,concat_fusion,control,full,which fusion mechanism ranks better on established items,15794,541,0.017219,0.016907,1.84,273,268,0.0092,0.45290806889533997,False
+attention_fusion,concat_fusion,cold_start,cold_only,which fusion mechanism ranks better on withheld items,25656,961,0.012013,0.012173,-1.31,487,474,0.0135,0.46067678928375244,False
+attention_fusion,ncf,control,full,does fusion beat the collaborative baseline on established items,15794,489,0.017219,0.016121,6.81,257,232,0.0511,0.036612369120121,True
+concat_fusion,ncf,control,full,does fusion beat the collaborative baseline on established items,15794,528,0.016907,0.016121,4.87,257,271,-0.0265,0.22890838980674744,False
+attention_fusion,text_only,cold_start,cold_only,does fusion beat the best unimodal system under cold-start,25656,919,0.012013,0.011484,4.61,471,448,0.025,0.3339041769504547,False
+concat_fusion,text_only,cold_start,cold_only,does fusion beat the best unimodal system under cold-start,25656,1012,0.012173,0.011484,6.0,503,509,-0.0059,0.16116534173488617,False
+attention_fusion,image_only,cold_start,cold_only,does fusion beat the weaker unimodal system under cold-start,25656,883,0.012013,0.006849,75.39,535,348,0.2118,4.325395923934259e-20,True
+concat_fusion,content_only,cold_start,cold_only,does collaborative signal help when the item is withheld,25656,1002,0.012173,0.010111,20.39,565,437,0.1277,0.00044528840226121247,True
+attention_fusion,attention_fusion,control,full,"self-comparison, expected to show no difference",15794,0,0.017219,0.017219,0.0,0,0,0.0,1.0,False

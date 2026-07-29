@@ -1,0 +1,15 @@
+system,condition,reported_ndcg,ndcg_excluding_affected,change_pct,users_removed
+ncf,control,0.016121,0.016392,1.68,261
+image_only,control,0.015515,0.015775,1.68,261
+image_only,blind,0.0,0.0,0.0,227
+text_only,control,0.014659,0.014905,1.68,261
+text_only,silent,0.0,0.0,0.0,261
+content_only,control,0.014672,0.014919,1.68,261
+content_only,blind,0.007183,0.007288,1.458,227
+content_only,silent,0.004653,0.004731,1.68,261
+concat_fusion,control,0.016907,0.017191,1.68,261
+concat_fusion,blind,0.015388,0.015612,1.458,227
+concat_fusion,silent,0.013859,0.014092,1.68,261
+attention_fusion,control,0.017219,0.017508,1.68,261
+attention_fusion,blind,0.016689,0.016933,1.458,227
+attention_fusion,silent,0.015734,0.015998,1.68,261
