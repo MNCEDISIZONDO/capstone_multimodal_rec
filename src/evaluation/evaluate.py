@@ -14,12 +14,28 @@ model, measuring how far each system depends on a modality. The cold-start
 condition evaluates items withheld from training entirely, which the model must
 rank from content alone.
 
+Two groups of items are excluded from the warm-start conditions, on the basis of
+a measured effect rather than an assumed one. Items whose image could not be
+retrieved carry a placeholder the model masks; their emptiness is a property of
+the data rather than a deliberate manipulation, so they are excluded from
+Control and Silent but retained under Blind, where the image is suppressed for
+every item and they are therefore not distinguishable. Items appearing in the
+test split with no training interaction have an untrained collaborative
+representation and are accidental cold-start cases inside a warm-start
+measurement; they are excluded from all three warm conditions. Excluding them
+raises every system's score by an almost identical margin, so no comparison
+between systems is affected.
+
+Ties are resolved by midrank. Counting only strictly higher scores would award
+rank one whenever a model produces uniform scores, reporting perfect accuracy
+for a model carrying no information.
+
 The cold-start condition is reported against two candidate pools, because they
 answer different questions. Against the full catalogue, a withheld item competes
 with established items that carry interaction history: this is the deployment
 scenario and the harder measurement. Against withheld items only, the popularity
 advantage of established items is removed, isolating how well content alone
-orders products. Neither figure is complete without the other.
+orders products.
 
 Per-user scores are retained so that significance testing operates over users
 rather than over training seeds. With five seeds the smallest achievable
@@ -82,13 +98,9 @@ def load_inputs() -> dict:
     test_users, test_items = to_indices("split_test.parquet")
     cold_users, cold_items = to_indices("split_ghost_evaluation.parquet")
 
-    is_ghost = items["is_ghost"].to_numpy().copy()
-
-    # Items appearing in the test split without any training interaction have an
-    # untrained collaborative representation. They are recorded so that their
-    # effect on the warm-start conditions can be reported rather than assumed.
-    trained_items = set(train_items.tolist())
-    accidental = np.array([i for i in np.unique(test_items) if i not in trained_items])
+    trained = set(train_items.tolist())
+    no_image = set(np.flatnonzero(~image_available).tolist())
+    untrained = {int(i) for i in np.unique(test_items) if int(i) not in trained}
 
     return dict(
         items=items, users=users,
@@ -98,7 +110,8 @@ def load_inputs() -> dict:
         cold_users=cold_users, cold_items=cold_items,
         image_features=image_features, image_available=image_available,
         text_features=text_features, text_available=text_available,
-        is_ghost=is_ghost, accidental_cold_start=accidental,
+        is_ghost=items["is_ghost"].to_numpy().copy(),
+        no_image=no_image, untrained=untrained,
     )
 
 
@@ -116,6 +129,8 @@ def build_seen(train_users: np.ndarray, train_items: np.ndarray,
 
 def metrics_from_ranks(ranks: np.ndarray) -> dict[str, float]:
     """Ranking metrics for a leave-one-out protocol with one relevant item."""
+    if len(ranks) == 0:
+        return {"ndcg": 0.0, "hit_rate": 0.0, "mrr": 0.0}
     within = ranks <= K
     return {
         "ndcg": float(np.where(within, 1.0 / np.log2(ranks + 1.0), 0.0).mean()),
@@ -124,34 +139,23 @@ def metrics_from_ranks(ranks: np.ndarray) -> dict[str, float]:
     }
 
 
-def score_matrix(model, device, chunk_users: np.ndarray, candidates: torch.Tensor,
-                 collaborative_available: torch.Tensor | None,
-                 image_enabled: bool, text_enabled: bool) -> torch.Tensor:
-    n_chunk = len(chunk_users)
-    n_candidates = candidates.shape[0]
-    user_tensor = torch.as_tensor(chunk_users, device=device)
-    available = (None if collaborative_available is None
-                 else collaborative_available.repeat(n_chunk))
-    scores = model(user_tensor.repeat_interleave(n_candidates),
-                   candidates.repeat(n_chunk),
-                   collaborative_available=available,
-                   image_enabled=image_enabled,
-                   text_enabled=text_enabled)
-    return scores.view(n_chunk, n_candidates)
-
-
 def evaluate_model(model, device, eval_users: np.ndarray, eval_items: np.ndarray,
                    candidates: np.ndarray, seen: dict[int, np.ndarray],
                    collaborative_available: np.ndarray | None,
                    image_enabled: bool = True, text_enabled: bool = True,
-                   restrict_to: np.ndarray | None = None) -> dict:
+                   restrict_to: np.ndarray | None = None,
+                   exclude_targets: set[int] | None = None) -> dict:
     """Rank every held-out item and return per-user ranks plus coverage.
 
     restrict_to, when given, names a subset of the candidate list against which
     ranks are additionally computed, so that one scoring pass yields both the
     full-catalogue and the restricted-pool measurement.
+
+    exclude_targets names held-out items whose evaluation is not meaningful for
+    this condition; the corresponding pairs are omitted from the reported metric.
     """
     model.eval()
+    exclude_targets = exclude_targets or set()
     candidate_tensor = torch.as_tensor(candidates, device=device)
     position_of = {int(item): index for index, item in enumerate(candidates)}
     available_tensor = (None if collaborative_available is None
@@ -169,15 +173,26 @@ def evaluate_model(model, device, eval_users: np.ndarray, eval_items: np.ndarray
         for start in range(0, len(eval_users), CHUNK):
             chunk_users = eval_users[start:start + CHUNK]
             chunk_items = eval_items[start:start + CHUNK]
+            n_chunk = len(chunk_users)
 
             positions = np.array([position_of.get(int(i), -1) for i in chunk_items])
-            valid = positions >= 0
-            if not valid.any():
+            keep = (positions >= 0) & np.array(
+                [int(i) not in exclude_targets for i in chunk_items])
+            if not keep.any():
                 continue
 
-            scores = score_matrix(model, device, chunk_users, candidate_tensor,
-                                  available_tensor, image_enabled, text_enabled)
+            user_tensor = torch.as_tensor(chunk_users, device=device)
+            n_candidates = len(candidates)
+            expanded_available = (None if available_tensor is None
+                                  else available_tensor.repeat(n_chunk))
+            scores = model(user_tensor.repeat_interleave(n_candidates),
+                           candidate_tensor.repeat(n_chunk),
+                           collaborative_available=expanded_available,
+                           image_enabled=image_enabled,
+                           text_enabled=text_enabled).view(n_chunk, n_candidates)
 
+            # Exclusion indices are assembled on the host and applied in a
+            # single scattered write, avoiding a device round trip per user.
             rows, columns = [], []
             for row, user in enumerate(chunk_users):
                 already_seen = seen.get(int(user))
@@ -191,26 +206,23 @@ def evaluate_model(model, device, eval_users: np.ndarray, eval_items: np.ndarray
             recommended.update(
                 scores.topk(K, dim=1).indices.cpu().numpy().reshape(-1).tolist())
 
-            target_positions = torch.as_tensor(np.where(valid, positions, 0), device=device)
+            target_positions = torch.as_tensor(np.where(keep, positions, 0), device=device)
             target_scores = scores.gather(1, target_positions.unsqueeze(1))
 
             # Items scoring identically to the target occupy a block of
             # consecutive rank positions; the target's expected position within
-            # that block is its midpoint. Counting only strictly higher scores
-            # would award rank one whenever a model produces uniform scores,
-            # reporting perfect accuracy for a model carrying no information.
+            # that block is its midpoint.
             def midrank(matrix: torch.Tensor) -> np.ndarray:
                 greater = (matrix > target_scores).sum(dim=1).float()
                 tied = (matrix == target_scores).sum(dim=1).float()
                 return (greater + (tied + 1.0) / 2.0).cpu().numpy()
 
-            ranks = midrank(scores)
-            all_ranks.append(ranks[valid])
-            evaluated_users.append(chunk_users[valid])
+            all_ranks.append(midrank(scores)[keep])
+            evaluated_users.append(chunk_users[keep])
 
             if restrict_positions is not None:
                 subset = scores.index_select(1, restrict_positions)
-                restricted_ranks.append(midrank(subset)[valid])
+                restricted_ranks.append(midrank(subset)[keep])
 
     result = {
         "ranks": np.concatenate(all_ranks) if all_ranks else np.array([]),
@@ -227,10 +239,12 @@ def evaluate_model(model, device, eval_users: np.ndarray, eval_items: np.ndarray
 
 def evaluate_scorer(scorer, eval_users: np.ndarray, eval_items: np.ndarray,
                     candidates: np.ndarray, seen: dict[int, np.ndarray],
-                    restrict_to: np.ndarray | None = None) -> dict:
+                    restrict_to: np.ndarray | None = None,
+                    exclude_targets: set[int] | None = None) -> dict:
     """Evaluate a non-learned baseline, which scores items independently of the user."""
+    exclude_targets = exclude_targets or set()
     position_of = {int(item): index for index, item in enumerate(candidates)}
-    base = scorer.score(candidates)
+    base = scorer.score(candidates).astype(np.float64)
     restrict_positions = (None if restrict_to is None
                           else np.array([position_of[int(i)] for i in restrict_to]))
 
@@ -239,9 +253,9 @@ def evaluate_scorer(scorer, eval_users: np.ndarray, eval_items: np.ndarray,
 
     for user, target in zip(eval_users, eval_items):
         target_position = position_of.get(int(target))
-        if target_position is None:
+        if target_position is None or int(target) in exclude_targets:
             continue
-        row = base.astype(np.float64).copy()
+        row = base.copy()
         already_seen = seen.get(int(user))
         if already_seen is not None and len(already_seen):
             row[already_seen] = -np.inf
@@ -286,14 +300,20 @@ def main() -> None:
     # which is the situation a deployed catalogue presents.
     collaborative_available = ~data["is_ghost"]
 
+    # Exclusions differ by condition. Items lacking an image are not
+    # distinguishable under Blind, where the image is suppressed for every item.
+    exclude_control = data["no_image"] | data["untrained"]
+    exclude_blind = data["untrained"]
+    exclude_silent = data["no_image"] | data["untrained"]
+
     print(f"users              : {data['n_users']:,}")
     print(f"items              : {data['n_items']:,}")
     print(f"warm candidates    : {len(warm_candidates):,}")
     print(f"cold-start items   : {len(cold_candidates):,}")
     print(f"test interactions  : {len(data['test_users']):,}")
     print(f"cold interactions  : {len(data['cold_users']):,}")
-    print(f"accidental cold-start items in test: "
-          f"{len(data['accidental_cold_start']):,}\n")
+    print(f"excluded from warm : {len(data['no_image'])} without an image, "
+          f"{len(data['untrained'])} without training history\n")
 
     rows = []
 
@@ -310,7 +330,7 @@ def main() -> None:
                                if pool == "full" else None),
         })
         rows.append(summary)
-        print(f"  {system:<18}{condition:<12}{pool:<7}"
+        print(f"  {system:<18}{condition:<12}{pool:<11}"
               f"NDCG {summary['ndcg']:.4f}  HR {summary['hit_rate']:.4f}  "
               f"MRR {summary['mrr']:.4f}  n={len(ranks):,}")
         np.save(PER_USER / f"{system}_{condition}_{pool}_ndcg.npy",
@@ -318,23 +338,16 @@ def main() -> None:
         np.save(PER_USER / f"{system}_{condition}_{pool}_users.npy", result["users"])
 
     print("NON-LEARNED ANCHORS")
-    popularity = PopularityBaseline(data["n_items"], data["train_items"])
-    record("popularity", "control", evaluate_scorer(
-        popularity, data["test_users"], data["test_items"],
-        warm_candidates, seen_warm), "full")
-    cold_result = evaluate_scorer(popularity, data["cold_users"], data["cold_items"],
-                                  all_candidates, seen_all, restrict_to=cold_candidates)
-    record("popularity", "cold_start", cold_result, "full")
-    record("popularity", "cold_start", cold_result, "cold_only")
-
-    random_baseline = RandomBaseline(arguments.seed)
-    record("random", "control", evaluate_scorer(
-        random_baseline, data["test_users"], data["test_items"],
-        warm_candidates, seen_warm), "full")
-    cold_result = evaluate_scorer(random_baseline, data["cold_users"], data["cold_items"],
-                                  all_candidates, seen_all, restrict_to=cold_candidates)
-    record("random", "cold_start", cold_result, "full")
-    record("random", "cold_start", cold_result, "cold_only")
+    for name, scorer in [("popularity", PopularityBaseline(data["n_items"],
+                                                           data["train_items"])),
+                         ("random", RandomBaseline(arguments.seed))]:
+        record(name, "control", evaluate_scorer(
+            scorer, data["test_users"], data["test_items"],
+            warm_candidates, seen_warm, exclude_targets=exclude_control), "full")
+        cold = evaluate_scorer(scorer, data["cold_users"], data["cold_items"],
+                               all_candidates, seen_all, restrict_to=cold_candidates)
+        record(name, "cold_start", cold, "full")
+        record(name, "cold_start", cold, "cold_only")
 
     print("\nLEARNED SYSTEMS")
     for system in SYSTEMS:
@@ -352,30 +365,34 @@ def main() -> None:
 
         record(system, "control", evaluate_model(
             model, device, data["test_users"], data["test_items"],
-            warm_candidates, seen_warm, None), "full")
+            warm_candidates, seen_warm, None,
+            exclude_targets=exclude_control), "full")
 
         if model.use_image:
             record(system, "blind", evaluate_model(
                 model, device, data["test_users"], data["test_items"],
-                warm_candidates, seen_warm, None, image_enabled=False), "full")
+                warm_candidates, seen_warm, None, image_enabled=False,
+                exclude_targets=exclude_blind), "full")
         if model.use_text:
             record(system, "silent", evaluate_model(
                 model, device, data["test_users"], data["test_items"],
-                warm_candidates, seen_warm, None, text_enabled=False), "full")
+                warm_candidates, seen_warm, None, text_enabled=False,
+                exclude_targets=exclude_silent), "full")
 
-        cold_result = evaluate_model(
+        cold = evaluate_model(
             model, device, data["cold_users"], data["cold_items"],
             all_candidates, seen_all, collaborative_available,
             restrict_to=cold_candidates)
-        record(system, "cold_start", cold_result, "full")
-        record(system, "cold_start", cold_result, "cold_only")
+        record(system, "cold_start", cold, "full")
+        record(system, "cold_start", cold, "cold_only")
 
         clear_gpu_memory()
 
     table = pd.DataFrame(rows)[
         ["system", "condition", "candidate_pool", "ndcg", "hit_rate", "mrr",
          "coverage_items", "coverage_share", "n_candidates", "n_evaluated"]]
-    output = TABLES / f"evaluation_summary{('_' + arguments.tag) if arguments.tag else ''}.csv"
+    suffix = f"_{arguments.tag}" if arguments.tag else ""
+    output = TABLES / f"evaluation_summary{suffix}.csv"
     table.to_csv(output, index=False)
 
     (TABLES / "evaluation_context.json").write_text(json.dumps({
@@ -383,7 +400,8 @@ def main() -> None:
         "users": int(data["n_users"]), "items": int(data["n_items"]),
         "warm_candidates": int(len(warm_candidates)),
         "cold_start_items": int(len(cold_candidates)),
-        "accidental_cold_start_items_in_test": int(len(data["accidental_cold_start"])),
+        "excluded_no_image": sorted(int(i) for i in data["no_image"]),
+        "excluded_untrained": sorted(int(i) for i in data["untrained"]),
     }, indent=2))
 
     print(f"\nWrote {output}")
