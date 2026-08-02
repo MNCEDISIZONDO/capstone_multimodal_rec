@@ -1,10 +1,9 @@
 system_a,system_b,condition,pool,question,n_pairs,n_differing,mean_a,mean_b,relative_gain_pct,a_better,b_better,effect_size,p_value,significant
-attention_fusion,concat_fusion,control,full,which fusion mechanism ranks better on established items,15533,541,0.017508,0.017191,1.84,273,268,0.0092,0.45290806889533997,False
-attention_fusion,concat_fusion,cold_start,cold_only,which fusion mechanism ranks better on withheld items,25656,961,0.012013,0.012173,-1.31,487,474,0.0135,0.46067678928375244,False
-attention_fusion,ncf,control,full,does fusion beat the collaborative baseline on established items,15533,489,0.017508,0.016392,6.81,257,232,0.0511,0.036612369120121,True
-concat_fusion,ncf,control,full,does fusion beat the collaborative baseline on established items,15533,528,0.017191,0.016392,4.87,257,271,-0.0265,0.22890838980674744,False
-attention_fusion,text_only,cold_start,cold_only,does fusion beat the best unimodal system under cold-start,25656,919,0.012013,0.011484,4.61,471,448,0.025,0.3339041769504547,False
-concat_fusion,text_only,cold_start,cold_only,does fusion beat the best unimodal system under cold-start,25656,1012,0.012173,0.011484,6.0,503,509,-0.0059,0.16116534173488617,False
-attention_fusion,image_only,cold_start,cold_only,does fusion beat the weaker unimodal system under cold-start,25656,883,0.012013,0.006849,75.39,535,348,0.2118,4.325395923934259e-20,True
-concat_fusion,content_only,cold_start,cold_only,does collaborative signal help when the item is withheld,25656,1002,0.012173,0.010111,20.39,565,437,0.1277,0.00044528840226121247,True
-attention_fusion,attention_fusion,control,full,"self-comparison, expected to show no difference",15533,0,0.017508,0.017508,0.0,0,0,0.0,1.0,False
+text_only,attention_fusion,cold_start,cold_only,does the best single content signal beat attention fusion under cold-start,25656,744,0.009217,0.005391,70.97,468,276,0.2581,1.6445630867853965e-14,True
+text_only,concat_fusion,cold_start,cold_only,does the best single content signal beat concatenation under cold-start,25656,787,0.009217,0.008678,6.21,396,391,0.0064,0.18497462570667267,False
+text_only,image_only,cold_start,cold_only,does text carry more cold-start signal than images,25656,846,0.009217,0.007641,20.62,462,384,0.0922,0.015036479569971561,True
+concat_fusion,attention_fusion,cold_start,cold_only,which fusion mechanism ranks better on withheld items,25656,690,0.008678,0.005391,60.98,428,262,0.2406,7.721237759235697e-22,True
+concat_fusion,ncf,control,full,does fusion beat the collaborative baseline on established items,15533,429,0.018159,0.016886,7.53,264,165,0.2308,1.1479987733764574e-06,True
+concat_fusion,popularity,control,full,does the best learned system beat the non-learned popularity anchor,15533,468,0.018159,0.015702,15.64,311,157,0.3291,1.7115992865326685e-12,True
+attention_fusion,content_only,silent,full,how differently do the fusion designs behave when text is suppressed,15533,616,0.015589,0.005871,165.51,453,163,0.4708,1.278711468056072e-22,True
+text_only,text_only,cold_start,cold_only,"self-comparison, expected to show no difference",25656,0,0.009217,0.009217,0.0,0,0,0.0,1.0,False

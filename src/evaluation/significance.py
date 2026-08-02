@@ -1,21 +1,17 @@
-"""Significance testing over per-user scores (manual section 6.5).
+"""Paired significance testing over per-user NDCG@10 within a single evaluation run.
 
-The test pairs users rather than training seeds. With five seeds a paired
-Wilcoxon signed-rank test cannot produce a two-sided p-value below 0.0625,
-because the test statistic derives from the number of distinct sign patterns
-available across paired observations and five pairs admit only thirty-two.
-Significance at the conventional threshold is therefore unreachable at the seed
-level however large the difference. Pairing users provides thousands of paired
-observations, each contributed by the same user evaluated under both systems on
-the same held-out item.
+Complements the five-seed aggregate. The aggregate reports variation across
+training runs; this test asks whether a difference holds consistently across
+users within one run.
 
-Seeds serve a different purpose, reported separately: they establish that a
-result is stable across random initialisation rather than that it is
-statistically distinguishable.
+Pairing is over users rather than seeds. Five seeds admit only 32 sign patterns,
+so the smallest achievable two-sided p-value is 0.0625 and significance at 0.05
+is unreachable at the seed level. Per-user pairing provides thousands of
+observations.
 
-Effect size is reported alongside every p-value, because with thousands of pairs
-a difference can be statistically significant while being far too small to
-matter. Both quantities are needed to interpret a comparison.
+Scores are read from the most recent evaluation, which is the final statistical
+seed. Report as a within-run comparison on that seed alongside the across-seed
+spreads.
 """
 from __future__ import annotations
 
@@ -42,23 +38,21 @@ ALPHA = 0.05
 
 # Each comparison states a question the results chapter must answer.
 COMPARISONS = [
-    ("attention_fusion", "concat_fusion", "control", "full",
-     "which fusion mechanism ranks better on established items"),
-    ("attention_fusion", "concat_fusion", "cold_start", "cold_only",
+    ("text_only", "attention_fusion", "cold_start", "cold_only",
+     "does the best single content signal beat attention fusion under cold-start"),
+    ("text_only", "concat_fusion", "cold_start", "cold_only",
+     "does the best single content signal beat concatenation under cold-start"),
+    ("text_only", "image_only", "cold_start", "cold_only",
+     "does text carry more cold-start signal than images"),
+    ("concat_fusion", "attention_fusion", "cold_start", "cold_only",
      "which fusion mechanism ranks better on withheld items"),
-    ("attention_fusion", "ncf", "control", "full",
-     "does fusion beat the collaborative baseline on established items"),
     ("concat_fusion", "ncf", "control", "full",
      "does fusion beat the collaborative baseline on established items"),
-    ("attention_fusion", "text_only", "cold_start", "cold_only",
-     "does fusion beat the best unimodal system under cold-start"),
-    ("concat_fusion", "text_only", "cold_start", "cold_only",
-     "does fusion beat the best unimodal system under cold-start"),
-    ("attention_fusion", "image_only", "cold_start", "cold_only",
-     "does fusion beat the weaker unimodal system under cold-start"),
-    ("concat_fusion", "content_only", "cold_start", "cold_only",
-     "does collaborative signal help when the item is withheld"),
-    ("attention_fusion", "attention_fusion", "control", "full",
+    ("concat_fusion", "popularity", "control", "full",
+     "does the best learned system beat the non-learned popularity anchor"),
+    ("attention_fusion", "content_only", "silent", "full",
+     "how differently do the fusion designs behave when text is suppressed"),
+    ("text_only", "text_only", "cold_start", "cold_only",
      "self-comparison, expected to show no difference"),
 ]
 
