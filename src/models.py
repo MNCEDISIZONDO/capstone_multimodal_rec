@@ -338,12 +338,14 @@ class RandomBaseline:
 
 # The named systems in the comparison, each a configuration of one class.
 SYSTEMS = {
-    "ncf":              dict(use_interaction=True,  use_image=False, use_text=False, fusion_mode="concat"),
-    "image_only":       dict(use_interaction=False, use_image=True,  use_text=False, fusion_mode="concat"),
-    "text_only":        dict(use_interaction=False, use_image=False, use_text=True,  fusion_mode="concat"),
-    "content_only":     dict(use_interaction=False, use_image=True,  use_text=True,  fusion_mode="concat"),
-    "concat_fusion":    dict(use_interaction=True,  use_image=True,  use_text=True,  fusion_mode="concat"),
-    "attention_fusion": dict(use_interaction=True,  use_image=True,  use_text=True,  fusion_mode="attention"),
+    "ncf":               dict(use_interaction=True,  use_image=False, use_text=False, fusion_mode="concat"),
+    "image_only":        dict(use_interaction=False, use_image=True,  use_text=False, fusion_mode="concat"),
+    "text_only":         dict(use_interaction=False, use_image=False, use_text=True,  fusion_mode="concat"),
+    "content_only":      dict(use_interaction=False, use_image=True,  use_text=True,  fusion_mode="concat"),
+    "interaction_image": dict(use_interaction=True,  use_image=True,  use_text=False, fusion_mode="concat"),
+    "interaction_text":  dict(use_interaction=True,  use_image=False, use_text=True,  fusion_mode="concat"),
+    "concat_fusion":     dict(use_interaction=True,  use_image=True,  use_text=True,  fusion_mode="concat"),
+    "attention_fusion":  dict(use_interaction=True,  use_image=True,  use_text=True,  fusion_mode="attention"),
 }
 
 

@@ -315,6 +315,8 @@ def main() -> None:
     print(f"excluded from warm : {len(data['no_image'])} without an image, "
           f"{len(data['untrained'])} without training history\n")
 
+    suffix = f"_{arguments.tag}" if arguments.tag else ""
+
     rows = []
 
     def record(system: str, condition: str, result: dict, pool: str) -> None:
@@ -333,9 +335,10 @@ def main() -> None:
         print(f"  {system:<18}{condition:<12}{pool:<11}"
               f"NDCG {summary['ndcg']:.4f}  HR {summary['hit_rate']:.4f}  "
               f"MRR {summary['mrr']:.4f}  n={len(ranks):,}")
-        np.save(PER_USER / f"{system}_{condition}_{pool}_ndcg.npy",
+        stem = f"{system}_{condition}_{pool}{suffix}"
+        np.save(PER_USER / f"{stem}_ndcg.npy",
                 np.where(ranks <= K, 1.0 / np.log2(ranks + 1.0), 0.0))
-        np.save(PER_USER / f"{system}_{condition}_{pool}_users.npy", result["users"])
+        np.save(PER_USER / f"{stem}_users.npy", result["users"])
 
     print("NON-LEARNED ANCHORS")
     for name, scorer in [("popularity", PopularityBaseline(data["n_items"],
@@ -391,7 +394,7 @@ def main() -> None:
     table = pd.DataFrame(rows)[
         ["system", "condition", "candidate_pool", "ndcg", "hit_rate", "mrr",
          "coverage_items", "coverage_share", "n_candidates", "n_evaluated"]]
-    suffix = f"_{arguments.tag}" if arguments.tag else ""
+    
     output = TABLES / f"evaluation_summary{suffix}.csv"
     table.to_csv(output, index=False)
 
