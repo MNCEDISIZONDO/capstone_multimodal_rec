@@ -1,0 +1,10 @@
+strategy,neighbour_rate,lift,mean_neighbour_similarity
+text (reference),0.04824,3.81,0.7166
+mean of four,0.04172,3.29,0.8958
+max-pool of four,0.04037,3.19,0.8606
+main view only,0.03828,3.02,0.8634
+mean of views 2-4,0.03797,3.0,0.8675
+concatenate four,0.03751,2.96,0.7547
+second view,0.03324,2.62,0.7831
+third view,0.03063,2.42,0.7764
+fourth view,0.02769,2.18,0.7658

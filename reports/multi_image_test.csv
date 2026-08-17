@@ -1,0 +1,2 @@
+products_encoded,images_encoded,within_product_mean,within_product_median,within_product_sd,share_below_080,cross_product_main_mean,cross_product_main_sd,cross_product_averaged_mean,cross_product_averaged_sd
+300,1162,0.7242,0.7251,0.1327,0.6877,0.6427,0.0846,0.7229,0.0686
