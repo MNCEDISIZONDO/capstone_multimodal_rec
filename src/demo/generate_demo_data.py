@@ -169,8 +169,12 @@ def main() -> None:
         cf = score_all(collaborative, device, user_idx, n_items, is_ghost)
 
         # where does each model place its best new listing across the whole store
-        mm_rank = int(np.argsort(np.argsort(-mm))[new_items].min() + 1)
-        cf_rank = int(np.argsort(np.argsort(-cf))[new_items].min() + 1)
+        # rank position of every product under each model, so the interface can
+        # compare models on a common scale rather than on raw scores
+        mm_positions = np.argsort(np.argsort(-mm)) + 1
+        cf_positions = np.argsort(np.argsort(-cf)) + 1
+        mm_rank = int(mm_positions[new_items].min())
+        cf_rank = int(cf_positions[new_items].min())
 
         customers.append({
             "user_id": user_id,
@@ -180,6 +184,8 @@ def main() -> None:
             "history": [int(i) for i in history],
             "scores_multimodal": {str(i): round(float(mm[i]), 4) for i in listing},
             "scores_collaborative": {str(i): round(float(cf[i]), 4) for i in listing},
+            "rank_multimodal": {str(i): int(mm_positions[i]) for i in listing},
+            "rank_collaborative": {str(i): int(cf_positions[i]) for i in listing},
             "best_new_rank_multimodal": mm_rank,
             "best_new_rank_collaborative": cf_rank,
             "spread_multimodal": round(float(mm[new_items].std()), 4),

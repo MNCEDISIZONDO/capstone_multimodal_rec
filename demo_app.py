@@ -205,22 +205,30 @@ elif st.session_state.product is not None:
             f'<div class="desc">{item["description"] or "No description available."}'
             f'</div>{note}</div>', unsafe_allow_html=True)
 
+        # ranks rather than raw scores: the two models produce values on
+        # different scales, so only position within a model is comparable
         a, b = st.columns(2)
         a.markdown(f'<div class="stat"><div class="n">'
-                   f'{customer["scores_multimodal"][idx]:.3f}</div>'
-                   f'<div class="l">multimodal score for this customer</div></div>',
-                   unsafe_allow_html=True)
+                   f'#{customer["rank_multimodal"][idx]:,}</div>'
+                   f'<div class="l">multimodal rank for this customer, '
+                   f'of {data["n_total"]:,}</div></div>', unsafe_allow_html=True)
         b.markdown(f'<div class="stat"><div class="n">'
-                   f'{customer["scores_collaborative"][idx]:.3f}</div>'
-                   f'<div class="l">collaborative score</div></div>',
-                   unsafe_allow_html=True)
+                   f'#{customer["rank_collaborative"][idx]:,}</div>'
+                   f'<div class="l">collaborative rank, '
+                   f'of {data["n_total"]:,}</div></div>', unsafe_allow_html=True)
 
-    similar = [i for i in item.get("similar", []) if str(i) in catalogue][:6]
-    st.markdown('<div class="sect">Similar products</div>'
-                '<div class="sub">Closest matches by image and text content to the '
-                'product above</div>', unsafe_allow_html=True)
-    if similar:
-        grid(similar, per_row=6, tag="sim")
+    similar = [i for i in item.get("similar", []) if str(i) in catalogue]
+    ranked_similar = rank_by(key, similar)[:6]
+    st.markdown(
+        f'<div class="sect">Similar products</div>'
+        f'<div class="sub">Products matching this one by image and text content, '
+        f'then ordered for {customer["label"]} by the {model.lower()} model</div>',
+        unsafe_allow_html=True)
+    if ranked_similar:
+        grid(ranked_similar, ranked=True,
+             scores=[f'#{customer["rank_" + key.split("_")[1]][str(i)]:,}'
+                     for i in ranked_similar],
+             per_row=6, tag="sim")
     else:
         st.info("No similar products available for this item.")
 
