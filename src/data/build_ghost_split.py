@@ -1,19 +1,14 @@
-"""Construct the cold-start (Ghost) split (manual sections 1.10 and 1.11).
+"""Create the cold-start Ghost split.
 
-Ghost items are withheld entirely from training: the model never observes a
-single interaction involving them. At evaluation it must recommend them from
-image and text alone, simulating a newly listed product.
+Ghost items and their interactions are removed before training. During testing,
+the model must recommend these items using only their image and text features.
 
-The order of operations is critical. The corpus is finalised first, Ghost items
-are selected second, every interaction involving a Ghost item is removed third,
-and only then is the remaining pool available for training. Selecting Ghost
-items after splitting would allow the model to learn representations for them,
-turning the cold-start evaluation into a warm-start evaluation that reports
-better results than the truth.
+The dataset must be finalised and the Ghost items selected before creating the
+training split. Otherwise, the model may learn about them during training and
+the cold-start results would not be reliable.
 
-Selection is stratified by domain and popularity band so the Ghost set mirrors
-the catalogue rather than concentrating on unusually easy or unusually
-difficult items.
+The items are selected from different domains and popularity levels to keep the
+Ghost set balanced.
 """
 from __future__ import annotations
 

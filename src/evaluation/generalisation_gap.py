@@ -1,16 +1,4 @@
-"""Compare each model's content-only performance on seen and unseen items.
 
-The pilot showed a fusion model scoring higher than the text-only model when the
-collaborative signal was masked on validation items, yet lower on the withheld
-items. Both measurements exercise the same pathway, so the difference lies in
-generalisation rather than in the pathway's quality.
-
-This measures both under one protocol. Seen items are scored from the validation
-split with the collaborative signal masked, so the model must rank them from
-content alone despite having trained on them. Unseen items are the withheld
-split. The ratio between the two is what separates a model that learned
-transferable structure from one that fitted the items it was shown.
-"""
 from __future__ import annotations
 
 import sys as _sys

@@ -1,19 +1,4 @@
-"""Pilot: does an auxiliary content-only objective improve cold-start ranking?
 
-The fusion models observe the collaborative signal on most training samples, and
-that signal admits memorisation, so gradient flows preferentially into it. The
-content pathways carry full responsibility only on the fraction of samples where
-the collaborative signal is dropped. Measured consequence: the fusion model that
-relies least on content is also the worst at cold-start.
-
-This trains one configuration twice, identical except for an auxiliary term that
-computes the same ranking loss with the collaborative signal masked for every
-sample, giving the content pathway full responsibility on every batch.
-
-Validation is measured two ways: normally, and with the collaborative signal
-masked, which measures the content pathway directly. Only validation data is
-used; the withheld cold-start split is not touched.
-"""
 from __future__ import annotations
 
 import sys as _sys

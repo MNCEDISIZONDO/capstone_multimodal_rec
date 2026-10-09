@@ -1,20 +1,4 @@
-"""Pilot: does decorrelating the image embeddings improve their transfer?
 
-Image embeddings occupy a narrow similarity band within each domain, with a
-standard deviation around 0.08 against 0.09 to 0.16 for text. A projection
-trained on that space learns to amplify small differences, and the measured
-consequence is that models relying on images retain the least performance when
-moved to unseen items.
-
-Whitening rescales the embedding space so that its dimensions are uncorrelated
-and of equal variance. The transform is fitted on training items only and
-applied as a fixed operation, so unseen items are transformed by the same rule
-rather than by anything learned from them.
-
-Retention is the metric of interest: content-only performance on unseen items as
-a share of content-only performance on seen items. It isolates transfer from
-pathway quality, since both are measured through the same pathway.
-"""
 from __future__ import annotations
 
 import sys as _sys

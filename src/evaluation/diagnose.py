@@ -1,14 +1,9 @@
-"""Diagnose whether high ranking scores reflect personalisation or popularity.
+"""Check whether ranking performance comes from personalisation or popularity.
 
-A model that recommends broadly the same items to every user can achieve
-respectable aggregate ranking scores, because popularity is a strong signal in
-interaction data, while providing no personalisation at all. Accuracy metrics
-alone cannot distinguish the two cases.
-
-Item coverage separates them: the share of the catalogue that appears in any
-user's recommendation list. A personalised model spreads across many items; a
-model that has collapsed onto popularity concentrates on few. The popularity
-baseline is evaluated alongside the learned models as the reference point.
+Compare learned models with the popularity baseline and measure item coverage.
+Higher coverage shows that recommendations are spread across more products,
+while low coverage may indicate that the model repeatedly recommends the same
+popular items.
 """
 from __future__ import annotations
 

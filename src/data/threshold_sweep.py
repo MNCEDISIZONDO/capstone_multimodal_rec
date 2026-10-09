@@ -1,6 +1,5 @@
 """Sensitivity sweep: converge at several item thresholds and compare.
-
-Section 1.8 says size serves density. This measures the trade directly so the
+This measures the trade directly so the
 final threshold is chosen against evidence rather than assumption.
 """
 from __future__ import annotations

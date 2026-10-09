@@ -1,15 +1,9 @@
-"""Do the content embeddings carry preference signal, or only category signal?
+"""Check whether content embeddings capture user preference patterns.
 
-Feature validation in Phase 2 measured whether embeddings separate product
-domains. Ranking requires something stricter: separating items within a domain,
-and doing so in a way that aligns with what users actually buy together.
-
-Two measurements. The first is the spread of pairwise similarity within a
-domain: a narrow distribution means the encoder assigns near-identical
-representations to different products, leaving nothing to rank on. The second
-compares each item's nearest neighbours in embedding space against the items it
-is genuinely co-purchased with, which is the property a content-based
-recommender depends on.
+Measure similarity variation between products within the same domain, then
+check whether nearest neighbours in the embedding space are products that users
+actually buy together. Wider variation and stronger co-purchase overlap indicate
+that the embeddings contain useful ranking information.
 """
 from __future__ import annotations
 

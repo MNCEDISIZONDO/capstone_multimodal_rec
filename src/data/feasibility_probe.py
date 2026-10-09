@@ -1,13 +1,12 @@
-"""Feasibility probe — count before you commit (manual section 1.5).
+"""Check whether the dataset is large enough before filtering.
 
-Tests the highest-risk assumption in the proposal: that enough cross-domain
-power users exist to yield 5-7k items carrying ~80k interactions. Produces the
-census tables that justify every threshold in config.yaml, and which belong in
-the methodology chapter.
+This checks whether there are enough users active across different domains to
+produce the required number of items and interactions. The results help explain
+the threshold values used in config.yaml.
 
-These are pre-iteration counts. Iterative filtering (section 1.7) will remove
-more, so treat every number here as an upper bound. If the three-domain pool
-is already too small here, it will not grow later.
+These counts are calculated before repeated filtering, so they are only upper
+limits. The final dataset will be smaller. If the three-domain dataset is already
+too small at this stage, later filtering will not make it larger.
 """
 from __future__ import annotations
 

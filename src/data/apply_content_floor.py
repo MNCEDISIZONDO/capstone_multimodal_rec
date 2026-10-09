@@ -1,11 +1,6 @@
-"""Enforce the content floor (manual section 1.9).
+"""Remove items with no usable image or text.
 
-An item with neither a usable image nor usable text is invisible to the content
-side of the model. As an ordinary item it contributes nothing beyond its
-collaborative vector; as a cold-start item it would be unrecommendable by any
-means, so its interactions would feed noise into the evaluation. Removing such
-items here guarantees by construction that every candidate for the cold-start
-split carries at least one content signal.
+Every cold-start candidate must have at least one usable content signal.
 """
 from __future__ import annotations
 

@@ -1,18 +1,4 @@
-"""Paired significance testing over per-user NDCG@10 within a single evaluation run.
 
-Complements the five-seed aggregate. The aggregate reports variation across
-training runs; this test asks whether a difference holds consistently across
-users within one run.
-
-Pairing is over users rather than seeds. Five seeds admit only 32 sign patterns,
-so the smallest achievable two-sided p-value is 0.0625 and significance at 0.05
-is unreachable at the seed level. Per-user pairing provides thousands of
-observations.
-
-Scores are read from the most recent evaluation, which is the final statistical
-seed. Report as a within-run comparison on that seed alongside the across-seed
-spreads.
-"""
 from __future__ import annotations
 
 # Allow this module to import the shared modules at the top of src/.

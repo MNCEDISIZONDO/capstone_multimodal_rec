@@ -1,16 +1,4 @@
-"""Measure which signals a trained fusion model actually relies on.
-
-A multimodal network optimises one objective through several pathways, and
-gradient descent develops whichever pathway reduces training loss fastest. That
-pathway is not necessarily the most useful one: a signal that permits
-memorisation can suppress the development of a signal that generalises. The
-symptom is a fusion model that performs worse than one of its own components.
-
-Attention weights make the reliance directly observable. They are measured on
-warm items, where every signal is available, and on cold-start items, where the
-collaborative signal is absent by construction and its weight must be exactly
-zero. The contrast between the two is also the interpretability evidence the
-project's objectives require.
+"""Measure which signals a trained fusion model actually relies on
 """
 from __future__ import annotations
 

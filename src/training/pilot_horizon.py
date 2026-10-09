@@ -1,17 +1,4 @@
-"""Does cold-start ability keep improving after warm-start validation plateaus?
 
-Checkpoints are currently selected on warm-start validation NDCG. A whitening
-pilot showed concat_fusion still gaining on unseen items at the epoch limit,
-reaching 0.0141 where the five-seed run selected a checkpoint worth 0.0101.
-
-This runs two models to a long horizon with no early stopping and records both
-metrics every epoch, to establish whether the two peak at different times.
-
-Two validation measures are reported. The cold-start proxy masks the
-collaborative signal on validation items, so it is available for checkpoint
-selection. The ghost score is the withheld split, recorded here for diagnosis
-only and never usable for selection.
-"""
 from __future__ import annotations
 
 import sys as _sys

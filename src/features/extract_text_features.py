@@ -1,18 +1,4 @@
-"""Encode product text into fixed vectors with a frozen SBERT encoder (§2.3).
-
-Text is assembled from the title, feature bullets, and the opening of the
-description, in that order of prominence. The title leads because it is the
-most consistently present and most informative field, and because the encoder
-truncates beyond a fixed token limit — so the ordering determines what survives
-truncation rather than what is merely included.
-
-As with the image encoder, embeddings are written in the row order defined by
-item_index.parquet, so row i always corresponds to item index i.
-
-The embedding dimension is fixed by the specific model loaded and must match the
-configured value, because the fusion layer's input projection is sized around
-it. A mismatch surfaces as a shape error at fusion time at best, and as silently
-incorrect embeddings at worst.
+"""Encode product text into fixed vectors with a frozen SBERT encoder
 """
 from __future__ import annotations
 

@@ -1,10 +1,8 @@
-"""Iterative filtering until convergence (manual section 1.7).
+"""Filter users and items repeatedly until the dataset stops changing.
 
-The power-user filter and the minimum-interactions-per-item filter interfere:
-removing non-cross-domain users starves items, and removing starved items
-pushes users below the domain threshold. Applying each once leaves the data in
-a state where neither condition actually holds. Alternate until a full pass
-changes nothing.
+Alternate between the cross-domain user filter and the minimum-interactions
+item filter because each can invalidate the other. Stop when a complete pass
+removes no additional users or items.
 """
 from __future__ import annotations
 

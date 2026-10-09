@@ -1,20 +1,4 @@
-"""Train every configuration across the statistical seeds (manual section 4.3).
-
-Tuning is complete and the configuration is locked, so replication is now
-meaningful: each run differs from the others only in the random seed governing
-initialisation and sampling order. Reporting a mean with its standard deviation
-across those runs distinguishes a stable result from a fluctuation, which a
-single run cannot do.
-
-The set of configurations covers both the headline comparison and the structural
-ablation. The ablation requires every non-empty combination of the three signals,
-so that the contribution of each can be attributed: seven combinations, of which
-the two mixing the interaction signal with a single content signal are not part
-of the headline comparison but are required to complete the matrix.
-
-The batch is resumable. A configuration whose summary file already exists is
-skipped, so an interruption costs only the run in progress.
-"""
+"""Train every configuration across the statistical seeds"""
 from __future__ import annotations
 
 # Allow this module to import the shared modules at the top of src/.

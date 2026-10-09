@@ -1,30 +1,4 @@
-"""Model architectures for the multimodal recommender (manual sections 3.1-3.2).
-
-A single implementation covers every system in the comparison. Each of the three
-item-side signals — collaborative, image, text — can be enabled or disabled at
-construction, so that the headline systems and the structural ablation variants
-are configurations of this class rather than separate codebases. Two systems
-sharing one implementation cannot differ through incidental engineering
-differences, which is what makes their comparison attributable to architecture.
-
-Two design points carry most of the correctness burden.
-
-Missing-modality handling. A modality can be absent for three distinct reasons:
-an item was withheld from training and therefore has no collaborative
-representation; an item's image could not be retrieved; or a modality is
-deliberately suppressed at evaluation to measure dependence on it. All three are
-handled by the same mechanism, and in no case is a zero vector consumed as
-though it were data. Under attention fusion the absent signal is excluded from
-the attention keys, so it contributes nothing to the weighted sum. Everywhere
-else the input width is fixed, so the absent signal's slot is filled by a
-learned parameter that the model trains to interpret as absence.
-
-Collaborative dropout. Every item present in training has, by definition, a
-collaborative representation, so a model trained naively never encounters the
-condition it must handle at cold-start inference. Randomly suppressing the
-collaborative signal during training exposes the model to that condition while
-it can still learn from it. This applies only where content signals remain to
-learn from; a collaborative-only model has no fallback.
+"""Model architectures for the multimodal recommender 
 """
 from __future__ import annotations
 

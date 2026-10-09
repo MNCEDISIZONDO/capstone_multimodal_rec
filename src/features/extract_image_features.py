@@ -1,18 +1,4 @@
-"""Encode product images into fixed vectors with a frozen CLIP encoder (§2.2).
-
-Extraction runs once, ahead of training. The recommender therefore never loads
-CLIP, which is what makes the project feasible within a 6 GB memory budget:
-only the small saved vectors are needed at training time.
-
-Embeddings are written in the row order defined by item_index.parquet, so that
-row i of the matrix always corresponds to item index i. This removes an entire
-class of silent failure in which features are fetched for the wrong item and
-training proceeds without error.
-
-Items whose image could not be retrieved receive a placeholder zero vector and
-are flagged in the stored availability mask. The placeholder exists only to keep
-the matrix rectangular; the model must consult the mask and never consume the
-zeros as though they were a real image.
+"""Encode product images into fixed vectors with a frozen CLIP encoder 
 """
 from __future__ import annotations
 

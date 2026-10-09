@@ -1,14 +1,4 @@
-"""Which way of using multiple product views carries the most preference signal?
 
-Products have around four images each. Averaging them was measured to push
-different products closer together, which is the opposite of what ranking needs.
-This compares several strategies on the metric that predicted the earlier
-results: whether items that are neighbours in embedding space are bought by the
-same people.
-
-No training required. The winner, if any, determines how features are extracted
-in a rebuild.
-"""
 from __future__ import annotations
 
 import sys as _sys

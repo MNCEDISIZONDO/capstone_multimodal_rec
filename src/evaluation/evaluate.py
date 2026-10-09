@@ -1,48 +1,4 @@
-"""Final evaluation across all systems and conditions (manual section 6).
 
-Every held-out interaction is ranked against the full catalogue rather than
-against a sample of negatives, because sampled evaluation is known to distort
-comparisons between models: a model that ranks the target above a hundred random
-items has not been asked the question the deployed system faces. Items the user
-interacted with during training are removed from the candidate list, since
-penalising a model for recommending items it correctly learned the user chose
-measures nothing useful.
-
-Four conditions are evaluated. Control uses every available signal. Blind and
-Silent suppress the image and text signals respectively in the fully trained
-model, measuring how far each system depends on a modality. The cold-start
-condition evaluates items withheld from training entirely, which the model must
-rank from content alone.
-
-Two groups of items are excluded from the warm-start conditions, on the basis of
-a measured effect rather than an assumed one. Items whose image could not be
-retrieved carry a placeholder the model masks; their emptiness is a property of
-the data rather than a deliberate manipulation, so they are excluded from
-Control and Silent but retained under Blind, where the image is suppressed for
-every item and they are therefore not distinguishable. Items appearing in the
-test split with no training interaction have an untrained collaborative
-representation and are accidental cold-start cases inside a warm-start
-measurement; they are excluded from all three warm conditions. Excluding them
-raises every system's score by an almost identical margin, so no comparison
-between systems is affected.
-
-Ties are resolved by midrank. Counting only strictly higher scores would award
-rank one whenever a model produces uniform scores, reporting perfect accuracy
-for a model carrying no information.
-
-The cold-start condition is reported against two candidate pools, because they
-answer different questions. Against the full catalogue, a withheld item competes
-with established items that carry interaction history: this is the deployment
-scenario and the harder measurement. Against withheld items only, the popularity
-advantage of established items is removed, isolating how well content alone
-orders products.
-
-Per-user scores are retained so that significance testing operates over users
-rather than over training seeds. With five seeds the smallest achievable
-two-sided p-value is 0.0625, so seed-level pairing cannot establish significance
-at the conventional threshold however large the difference; per-user pairing
-provides thousands of observations and seeds measure stability instead.
-"""
 from __future__ import annotations
 
 # Allow this module to import the shared modules at the top of src/.

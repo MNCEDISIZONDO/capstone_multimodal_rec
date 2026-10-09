@@ -1,12 +1,5 @@
 """Precompute storefront data: catalogue, per-customer scores from both models.
 
-Both models score every product in the demonstration catalogue once per
-customer. Every view in the interface is a filter and sort over those stored
-scores, so nothing is arranged by hand.
-
-Full-catalogue rank statistics are computed over all products, not the
-demonstration subset, so the reported position of the best new listing is
-honest.
 """
 from __future__ import annotations
 

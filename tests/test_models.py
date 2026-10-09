@@ -1,16 +1,4 @@
-"""Verify the model architectures before training (manual section 3.3).
-
-The architectures are checked against the real corpus rather than dummy data, so
-that tensor shapes, embedding table sizes and feature alignment are validated in
-the configuration they will actually run in.
-
-The most important check concerns cold-start branching. A model can produce
-plausible scores for a withheld item while silently substituting zeros for its
-missing collaborative representation, which would make the cold-start evaluation
-measure something other than what it claims. The test therefore scores a
-withheld item twice: once through the content-only path, and once with its
-collaborative vector explicitly zeroed. Identical results would prove the
-branching is not occurring.
+"""Verify the model architectures before training 
 """
 from __future__ import annotations
 

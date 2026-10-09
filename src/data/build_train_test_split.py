@@ -1,22 +1,11 @@
-"""Partition the non-Ghost interactions into training, validation and test
-(manual section 1.12).
+"""Split non-Ghost interactions into training, validation and test sets.
 
-The split is chronological and leave-one-out: each user's most recent
-interaction becomes their test item, their second most recent their validation
-item, and everything earlier is training. Time-based partitioning mirrors the
-deployed task of predicting a user's next action from their history, whereas a
-random split would allow the model to predict earlier behaviour from later
-behaviour.
+For each user, assign the most recent interaction to testing, the second most
+recent to validation, and all earlier interactions to training. Break timestamp
+ties consistently using the item identifier.
 
-Ties in timestamp are broken deterministically by item identifier. The source
-data batch-records reviews, so identical timestamps are common, and an
-undefined tie-break would make the split non-reproducible across rebuilds.
-
-Users with too few interactions are removed before splitting: one interaction
-each goes to validation and test, so a minimum is required for the remainder to
-support a learnable representation. Because this removal happens after the
-cold-start split was constructed, the cold-start evaluation set is re-checked
-afterwards for users who no longer appear in training.
+Remove users without enough interactions before splitting, then check that
+every cold-start evaluation user still appears in the training set.
 """
 from __future__ import annotations
 

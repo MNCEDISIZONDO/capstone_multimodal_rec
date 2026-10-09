@@ -1,5 +1,5 @@
 """Inspect raw metadata structure before building the coarse pass.
-Reads a bounded sample — never loads the whole file."""
+Reads a bounded sample  never loads the whole file."""
 
 # Allow this module to import the shared modules at the top of src/.
 import sys as _sys

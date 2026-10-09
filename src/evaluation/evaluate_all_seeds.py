@@ -1,17 +1,10 @@
-"""Evaluate every trained seed and aggregate across them (manual section 7.2).
+"""Evaluate every trained seed and summarise the results.
 
-A single evaluation reports the performance of one training run, and a run
-selected during tuning is an optimistic draw: the configuration was chosen
-because it performed well on that seed, so its performance on that seed
-overstates what the configuration achieves in general. Replicating across the
-statistical seeds and reporting a mean with its standard deviation separates the
-configuration's expected performance from the fluctuation of any one run.
-
-Each seed is evaluated independently by the standard protocol, so nothing about
-the measurement changes; only the number of runs it is applied to. Per-seed
-results are retained alongside the aggregate, because a mean is uninterpretable
-without the spread it summarises.
+Evaluate each seed independently using the same protocol. Report the mean and
+standard deviation across seeds, while retaining the individual seed results
+to show how much performance varies between training runs.
 """
+
 from __future__ import annotations
 
 # Allow this module to import the shared modules at the top of src/.

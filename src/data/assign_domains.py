@@ -1,18 +1,9 @@
-"""Assign items to the five domains (manual section 1.4).
+"""Assign items to the five product domains using category and title rules.
 
-Runs against the local Parquet file, never the raw source, so rules can be
-revised and re-run in seconds. Also emits the title audit section 1.4 requires.
-
-Three-stage filter, in order:
-  1. LEAF veto     — the last token of the hierarchical category path is what
-     the item IS. A laptop ends in 'traditional laptops'; a laptop bag ends in
-     'bags, cases & sleeves'. Both share the ancestor 'computers &
-     accessories', so vetoing on ancestors would reject the whole catalogue.
-  2. TITLE veto    — Amazon files straps, cases and chargers under the device
-     leaf they accompany. Only titles catch these.
-  3. TITLE require — the title must contain a domain-relevant term. This is
-     the robust stage: it kills outright metadata errors (a toothbrush filed
-     under 'speakers') without needing them to be anticipated.
+The filter first rejects excluded leaf categories, then removes accessories
+identified from their titles, and finally requires each title to contain a
+term relevant to its assigned domain. A title audit is also generated to check
+the assignments.
 """
 from __future__ import annotations
 

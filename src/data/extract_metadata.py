@@ -1,10 +1,8 @@
-"""One expensive pass over the raw metadata (manual section 1.3).
+"""Convert the raw metadata into a compact, reusable format.
 
-Streams meta_Electronics.jsonl.gz exactly once and writes every item to a
-compact Parquet file, plus the full category-token vocabulary. Domain
-assignment is deliberately NOT done here: it happens later against the
-Parquet file, so keyword rules can be revised in seconds without ever
-re-reading the 1.2 GB source.
+Read the compressed source once and save the item metadata and category-token
+vocabulary to Parquet. Apply domain-assignment rules later so they can be
+updated and rerun without reading the raw source again.
 """
 from __future__ import annotations
 

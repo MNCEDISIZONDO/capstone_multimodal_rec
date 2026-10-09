@@ -1,15 +1,8 @@
-"""Validate the extracted embeddings before they are used for training (§2.4).
+"""Validate the extracted embeddings before training.
 
-Two classes of check. The first is mechanical: dimensions, alignment with the
-item index, and numerical integrity, because a single corrupt vector poisons the
-training loss. The second concerns meaning: embeddings can be present, correctly
-shaped and numerically valid while encoding nothing useful, which would cause
-the multimodal premise to fail silently rather than visibly.
-
-The semantic check compares within-domain similarity against cross-domain
-similarity. Items from the same product domain should embed closer together than
-items from different domains. If they do not, the wrong field or the wrong model
-was almost certainly encoded, and training must not proceed.
+Check their dimensions, alignment with the item index and numerical integrity.
+Then confirm that items from the same product domain are more similar than
+items from different domains. Stop if any check fails.
 """
 from __future__ import annotations
 

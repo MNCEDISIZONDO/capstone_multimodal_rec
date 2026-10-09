@@ -1,22 +1,4 @@
-"""Tuning sweep over the parameters governing modality competition (§5).
-
-A fusion model was observed performing well below one of its own single-signal
-components, while attention analysis showed it allocating seventy percent of its
-weight to the collaborative signal — the weakest of the three when measured
-alone. This is characteristic of a multimodal network in which one pathway
-develops at the expense of the others: gradient descent favours whichever signal
-reduces training loss fastest, and a signal that permits memorisation does so
-faster than signals that generalise.
-
-Two parameters govern this directly. Suppressing the collaborative signal for a
-proportion of training samples forces the content pathways to develop, because
-the model must produce a score without it. Reducing the width of the item
-embedding limits how much of the interaction history can be memorised at all.
-
-Every configuration is reported with item coverage alongside the ranking
-metrics, because a model that has collapsed onto recommending broadly the same
-items to every user can match a personalised model on accuracy while differing
-from it entirely in behaviour.
+"""Tuning sweep over the parameters governing modality competition in the attention fusion model.
 """
 from __future__ import annotations
 

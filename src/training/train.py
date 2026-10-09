@@ -1,27 +1,4 @@
-"""Train one system on the development seed (manual section 4).
-
-The training objective is pairwise: for each observed interaction the model is
-taught to score the interacted item above items the user did not interact with.
-This matches the task, which is ranking rather than rating prediction, and it is
-why the evaluation metrics are ranking metrics.
-
-Two constraints specific to this project shape the sampling. Negatives are drawn
-only from items the model can represent — withheld cold-start items have no
-collaborative representation during training, so asking the model to score one
-as a negative would produce meaningless gradients. And negatives are checked
-against the user's own training interactions, so an item the user actually chose
-is never presented as an example of something they rejected.
-
-Validation ranks a sample of users against the full candidate catalogue rather
-than against a handful of sampled negatives, because sampled metrics are known
-to distort model comparisons. Item coverage is reported alongside the ranking
-metrics because accuracy alone cannot distinguish a personalised recommender
-from one that has collapsed onto recommending broadly the same popular items to
-everybody; the two are indistinguishable in an accuracy column and obvious in a
-coverage column.
-
-Early stopping retains the best checkpoint rather than the last, since the last
-may already be overfitting.
+"""Train one system on the development seed and report the best validation NDCG@10 and coverage at that epoch.
 """
 from __future__ import annotations
 

@@ -1,12 +1,8 @@
-"""Settle the final corpus size (manual section 1.8).
+"""Build the final corpus using iterative filtering.
 
-Applies the relaxed item threshold and runs iterative filtering to its natural
-convergence point. The converged corpus is used in full rather than sampled
-down to a smaller target: because the item and user filters are mutually
-dependent, removing items disqualifies their purchasers from the power-user
-constraint, which starves further items in a destructive cascade. Preserving
-the full converged graph maintains corpus size, interaction density, and the
-complete popularity spectrum simultaneously.
+Apply the relaxed item threshold repeatedly until no more users or items are
+removed. Keep the full converged corpus because further sampling could trigger
+additional removals and reduce both dataset size and interaction density.
 """
 from __future__ import annotations
 

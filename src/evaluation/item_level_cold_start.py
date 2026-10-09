@@ -1,10 +1,4 @@
 """Per-item cold-start retrieval quality, for error analysis.
-
-The evaluation stores scores per user, which cannot be reorganised by item after
-the fact: one user's held-out interaction concerns one item, and an item's
-overall retrieval quality is the aggregate over the users who interacted with it.
-This computes that aggregate directly, alongside the item attributes the failure
-analysis examines.
 """
 from __future__ import annotations
 

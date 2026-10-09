@@ -1,24 +1,4 @@
-"""Quantify the effect of two item classes on the reported results (§1.13).
 
-Two groups of items were identified during data engineering as potentially
-distorting particular comparisons, and a decision on them was deferred to
-evaluation.
-
-Twenty-four items have no retrievable image. Their image feature is a
-placeholder that the model masks rather than consumes, so under the Control
-condition they behave as image-absent items and under the Silent condition they
-carry no content at all. Their emptiness is a property of the data rather than a
-deliberate manipulation, which is why the build manual requires them to be
-excluded from those two comparisons.
-
-Fifty-one items appear in the test split without any training interaction. Their
-collaborative representation was never updated, so they are accidental
-cold-start cases inside a warm-start measurement.
-
-Rather than assume these groups are immaterial, this script recomputes every
-affected metric with them removed and reports the difference. A measured
-statement about their effect is defensible; an assumed one is not.
-"""
 from __future__ import annotations
 
 # Allow this module to import the shared modules at the top of src/.

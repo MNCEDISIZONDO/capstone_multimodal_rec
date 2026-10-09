@@ -1,9 +1,10 @@
-"""Filter the 43.4M interactions down to in-scope items (manual section 1.3).
+"""Filter the full interaction dataset to include only selected items.
 
-Streams the ratings CSV in chunks so memory stays bounded, attaches each
-interaction's domain during the pass, and writes Parquet. Everything
-downstream — the feasibility probe, the density filters, the corpus sizing —
-runs against that Parquet file in seconds.
+The ratings file is processed in smaller chunks to avoid using too much memory.
+Each interaction is linked to its product domain and saved as a Parquet file.
+
+The remaining data-processing steps use the Parquet file because it is faster
+to load and process than the original CSV file.
 """
 from __future__ import annotations
 

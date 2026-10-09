@@ -1,16 +1,10 @@
-"""Final Phase 1 validation and split freeze (manual sections 1.14 to 1.16).
+"""Validate and freeze the final dataset splits.
 
-Engineering validation confirms the pipeline produced what it was supposed to:
-files readable, identifiers complete, splits disjoint, cold-start leakage zero.
-These are correctness questions with right answers, and all must pass.
+Check that all files are readable, identifiers are complete, splits do not
+overlap, and no cold-start items leak into training. Record dataset statistics
+such as popularity distribution, cold-start representation and domain density.
 
-Research validation characterises the dataset honestly: popularity skew,
-cold-start representativeness, and per-domain density. These are not
-pass-or-fail; they belong in the methodology and limitations chapters.
-
-The split is then frozen. Checksums are recorded so that any later change is
-detectable, because every result produced from this point depends on this exact
-partition. Rebuilding the split voids every result obtained before the rebuild.
+Save checksums for the final splits so that any later changes can be detected.
 """
 from __future__ import annotations
 

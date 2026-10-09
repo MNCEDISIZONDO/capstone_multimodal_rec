@@ -1,15 +1,8 @@
-"""Download and validate product images (manual section 1.9).
+"""Download and validate product images.
 
-Runs after the corpus is settled and before the Ghost split is built, because
-Ghost selection requires every candidate to have a verified local image.
-
-Amazon's image URLs are not stable and a meaningful fraction have expired, so
-each download is retried with increasing waits and the result is verified to be
-a genuine image rather than an error page or placeholder. Every outcome is
-recorded in a registry consumed by feature extraction, by the content floor,
-and by the data-quality figures reported in the thesis.
-
-The job is resumable: items whose image is already present on disk are skipped.
+Retry failed downloads with increasing delays and verify that each file is a
+valid image. Record every result for later processing and skip images that are
+already available locally so the job can resume safely.
 """
 from __future__ import annotations
 
